@@ -1,0 +1,49 @@
+created_at and updated_at are on all data models
+
+Scenario
+--------
+id              : string (UUID یا Q1, Q2, ...)
+text            : string
+options         : list[string]
+correct_option  : int (اختیاری – برای امتیازدهی)
+
+
+User
+----
+id        : string
+username  : string
+
+Decision
+----------
+user_id         : string
+scenario_id     : string
+selected_option : int
+timestamp       : datetime
+
+
+DecisionMatrix
+--------------
+rows: Decision[]
+profile_id : string
+category_id : string
+
+
+UserProfile
+------------
+id : string
+user_id : string
+
+Category 
+----------
+id : string
+name : string
+description : string
+function_id: string (foreign )
+
+Function 
+-----------
+id : string
+name : string
+path : string
+parameters : string
+
