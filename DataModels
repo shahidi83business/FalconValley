@@ -1,5 +1,7 @@
 created_at and updated_at are on all data models
 
+
+
 Scenario
 --------
 id              : string (UUID یا Q1, Q2, ...)
@@ -19,6 +21,15 @@ user_id         : string
 scenario_id     : string
 selected_option : int
 timestamp       : datetime
+
+DecisionSession
+-----------
+id : string
+user_id : string 
+current_step : int
+started_at : string
+ended_at : string
+status    : enum     (in_progress | completed | abandoned)
 
 
 DecisionMatrix
