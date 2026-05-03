@@ -5,7 +5,7 @@ import asyncio
 
 
 MONGO_URI = "mongodb://localhost:27017"
-DB_NAME = "quizdb"
+DB_NAME = "ecokirom"
 
 client: AsyncIOMotorClient = None
 db = None

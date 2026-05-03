@@ -17,44 +17,63 @@ username  : string
 
 Decision
 ----------
-user_id         : string
-scenario_id     : string
+user         : User
+scenario     : Scenario
 selected_option : int
 timestamp       : datetime
+round : Round
 
-DecisionSession
+RoundSession
 -----------
 id : string
-user_id : string 
+user : User 
 current_step : int
 started_at : string
 ended_at : string
 status    : enum     (in_progress | completed | abandoned)
+round : Round
 
-
-DecisionMatrix
+Round
 --------------
-rows: Decision[]
-profile_id : string
-category_id : string
+profile: UserProfile
+opponents: Opponent
+User : User
+category : Category
 
 
 UserProfile
 ------------
 id : string
-user_id : string
+user : User
 
 Category 
 ----------
 id : string
 name : string
 description : string
-function_id: string (foreign )
+function: EconomyFunction
 
-Function 
+
+Opponent
+--------
+id
+strategy_key
+parameters (json)
+
+
+EconomyFunction 
 -----------
 id : string
 name : string
 path : string
-parameters : string
+parameters : json
 
+MetaData
+--------
+id             : string (UUID)
+parent_type    : enum("round_session","decision","scenario","user","opponent")
+parent_id      : string
+key            : string
+value          : json (متن آزاد، JSON، عدد، آرایه…)
+created_at     : datetime
+updated_at     : datetime
