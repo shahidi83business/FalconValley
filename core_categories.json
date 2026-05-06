@@ -1,0 +1,48 @@
+{
+    "Cooperation & Trust": {
+        "description": "Iterated dilemma focused on trust, cooperation, and reputation.",
+        "functions": [
+            "PrisonerPayoff",
+            "ReputationUpdate",
+            "TrustUpdate",
+            "DiscountUpdate"
+        ]
+    },
+
+    "Risk & Uncertainty": {
+        "description": "Decision-making under risk, noise, and imperfect information.",
+        "functions": [
+            "RiskUtility",
+            "ProspectTheory",
+            "UncertaintyNoise",
+            "RiskAdjustedPayoff"
+        ]
+    },
+
+    "Competition": {
+        "description": "Competitive payoff structure based on maximizing advantage.",
+        "functions": [
+            "CompetitivePayoff",
+            "RiskAdjustment",
+            "ReputationImpact"
+        ]
+    },
+
+    "Negotiation": {
+        "description": "Bargaining and resource-sharing scenarios.",
+        "functions": [
+            "ExpectedUtility",
+            "FairnessAdjustment",
+            "LongTermImpact"
+        ]
+    },
+
+    "Reputation Dynamics": {
+        "description": "Focus on long-term social value and reputation evolution.",
+        "functions": [
+            "SocialImpactScore",
+            "ReputationUpdate",
+            "FuturePayoffModifier"
+        ]
+    }
+}

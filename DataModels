@@ -51,7 +51,6 @@ Category
 id : string
 name : string
 description : string
-function: EconomyFunction
 
 
 Opponent
@@ -67,6 +66,7 @@ id : string
 name : string
 path : string
 parameters : json
+category: Category
 
 MetaData
 --------

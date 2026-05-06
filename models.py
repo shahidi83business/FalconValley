@@ -20,6 +20,7 @@ class EconomyFunction(Document):
     name = StringField(required=True)
     path = StringField()
     parameters = DictField()
+    category = ReferenceField(Category)
     created_at = DateTimeField(default=now)
     updated_at = DateTimeField(default=now)
 
@@ -27,7 +28,6 @@ class Category(Document):
     id = StringField(primary_key=True, default=lambda: str(uuid.uuid4()))
     name = StringField(required=True)
     description = StringField()
-    function = ReferenceField(EconomyFunction)
     created_at = DateTimeField(default=now)
     updated_at = DateTimeField(default=now)
 
