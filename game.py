@@ -62,11 +62,39 @@ def start_round(round):
     print("Building current game state...")
 
 def generate_scenario(scenario):
-    print("Generating context narrative...")
-    print("Updating player internal state...")
-    print("Updating opponent perception...")
-    print("Setting economic frame...")
-    print("Presenting decision moment...")
+    import openai
+    from models import Scenario, UserProfile, Opponent
+
+    # Fetch or create a scenario
+    scenario = Scenario.objects.first()
+    if not scenario:
+        print("No scenario found. Creating a default scenario...")
+        scenario = Scenario(text="Default Scenario", options=["Option 1", "Option 2"], correct_option=0)
+        scenario.save()
+
+    # Fetch player profile and opponent
+    player_profile = UserProfile.objects.first()
+    opponent = Opponent.objects.first()
+
+    # Connect to GPT API for narrative generation
+    openai.api_key = "your_openai_api_key_here"
+    prompt = f"Generate a narrative scenario based on the following details:\nPlayer Profile: {player_profile}\nOpponent: {opponent}\nScenario: {scenario.text}"
+
+    try:
+        response = openai.Completion.create(
+            engine="text-davinci-003",
+            prompt=prompt,
+            max_tokens=200
+        )
+        narrative = response.choices[0].text.strip()
+        print("Generated Narrative:", narrative)
+
+        # Update scenario with the generated narrative
+        scenario.text = narrative
+        scenario.save()
+
+    except Exception as e:
+        print("Error generating narrative:", e)
 
 def make_decision(player, decision):
     print("Player is making a decision: Cooperate or Defect...")
@@ -91,11 +119,34 @@ def calculate_outcome(economy):
     print("Economic engine result:", result)
 
 def update_state(state):
-    print("Updating reputation...")
-    print("Updating trust...")
-    print("Updating risk preference...")
-    print("Storing round decisions...")
-    print("Persisting to database...")
+    from models import UserProfile, Round, Decision
+
+    # Fetch the current user profile
+    profile = UserProfile.objects.first()
+    if not profile:
+        print("No user profile found. Cannot update state.")
+        return
+
+    # Update reputation (placeholder logic)
+    print("Updating reputation for user:", profile.user.username)
+    # Placeholder: Add logic to calculate and update reputation
+
+    # Update trust (placeholder logic)
+    print("Updating trust for user:", profile.user.username)
+    # Placeholder: Add logic to calculate and update trust
+
+    # Update risk preference (placeholder logic)
+    print("Updating risk preference for user:", profile.user.username)
+    # Placeholder: Add logic to calculate and update risk preference
+
+    # Store round decisions
+    current_round = Round.objects().order_by('-created_at').first()
+    if current_round:
+        print("Storing decisions for round ID:", current_round.id)
+        # Placeholder: Add logic to store decisions
+
+    # Persist changes to database
+    print("Persisting updated state to database...")
 
 def feedback_player(feedback):
     print("Showing outcome narrative...")
@@ -107,12 +158,44 @@ def check_session(session):
     return True  # Placeholder for continuation logic
 
 def next_round(round):
-    print("Looping back to round start...")
+    from models import Round, UserProfile
+
+    # Fetch the current round
+    current_round = Round.objects().order_by('-created_at').first()
+    if not current_round:
+        print("No current round found. Initializing a new round...")
+        profile = UserProfile.objects.first()
+        current_round = Round(profile=profile, created_at=now())
+        current_round.save()
+
+    # Increment round counter (placeholder logic)
+    print("Starting next round with ID:", current_round.id)
+    # Placeholder: Add logic to reset or prepare the state for the next round
 
 def end_session(session):
-    print("Calculating total profit...")
-    print("Updating player progression...")
-    print("Storing session summary...")
+    from models import RoundSession, UserProfile
+
+    # Fetch the current session
+    session = RoundSession.objects(status="in_progress").first()
+    if not session:
+        print("No active session found to end.")
+        return
+
+    # Calculate total profit (placeholder logic)
+    total_profit = 100  # Replace with actual calculation logic
+    print("Total profit calculated:", total_profit)
+
+    # Update player progression
+    profile = UserProfile.objects(user=session.user).first()
+    if profile:
+        print("Updating player progression for user:", session.user.username)
+        # Placeholder: Add logic to update progression based on total_profit
+
+    # Mark session as completed
+    session.status = "completed"
+    session.ended_at = now()
+    session.save()
+    print("Session ended and summary stored with ID:", session.id)
 
 def game_loop():
     # Game Session Start
