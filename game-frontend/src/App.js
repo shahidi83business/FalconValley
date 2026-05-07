@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { GameProvider } from './context/GameContext';
+import { GameLoopProvider } from './context/GameLoopContext';
 import Lobby from './screens/Lobby';
 import ScenarioView from './screens/ScenarioView';
 import DecisionPanel from './screens/DecisionPanel';
@@ -9,7 +10,8 @@ import SessionSummary from './screens/SessionSummary';
 
 const App = () => {
     return (
-        <GameProvider>
+        <GameLoopProvider>
+            <GameProvider>
             <Router>
                 <Routes>
                     <Route path="/" element={<Lobby />} />
@@ -19,7 +21,8 @@ const App = () => {
                     <Route path="/summary" element={<SessionSummary />} />
                 </Routes>
             </Router>
-        </GameProvider>
+            </GameProvider>
+        </GameLoopProvider>
     );
 };
 
