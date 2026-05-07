@@ -1,25 +1,26 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { GameProvider } from './context/GameContext';
+import Lobby from './screens/Lobby';
+import ScenarioView from './screens/ScenarioView';
+import DecisionPanel from './screens/DecisionPanel';
+import RoundOutcome from './screens/RoundOutcome';
+import SessionSummary from './screens/SessionSummary';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
-}
+const App = () => {
+    return (
+        <GameProvider>
+            <Router>
+                <Routes>
+                    <Route path="/" element={<Lobby />} />
+                    <Route path="/scenario" element={<ScenarioView />} />
+                    <Route path="/decision" element={<DecisionPanel />} />
+                    <Route path="/outcome" element={<RoundOutcome />} />
+                    <Route path="/summary" element={<SessionSummary />} />
+                </Routes>
+            </Router>
+        </GameProvider>
+    );
+};
 
 export default App;
