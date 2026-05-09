@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Backend",
+      "type": "shell",
+      "command": "python",
+      "args": ["run.py"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Frontend",
+      "type": "shell",
+      "command": "npm",
+      "args": ["start"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "options": {
+        "cwd": "game-frontend"
+      }
+    }
+  ],
+  "inputs": [],
+  "compounds": [
+    {
+      "label": "Run Backend and Frontend",
+      "tasks": ["Run Backend", "Run Frontend"]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "workbench.startupEditor": "none",
+  "terminal.integrated.defaultProfile.windows": "Command Prompt",
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "task.autoDetect": "on",
+  "tasks.onStartupFinished": [
+    "Run Backend and Frontend"
+  ]
+}
