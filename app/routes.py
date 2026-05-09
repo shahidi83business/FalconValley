@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from app.models import User  # Assuming User is defined in models.py
+from app.models import User, UserProfile, RoundSession, Scenario, EconomyFunction, Opponent  # Assuming these are defined in models.py
 from werkzeug.security import generate_password_hash
 import jwt
 import datetime
@@ -57,3 +57,31 @@ def reset_password():
         return jsonify({"message": "Token has expired!"}), 400
     except Exception as e:
         return jsonify({"message": "Invalid token!", "error": str(e)}), 400
+
+# Game Session Endpoints
+
+@main.route('/api/game/start', methods=['POST'])
+def start_game():
+    # Logic to start a game session
+    return jsonify({"message": "Game session started!"})
+
+@main.route('/api/game/initialize_scenario', methods=['POST'])
+def initialize_scenario():
+    # Logic to initialize a scenario
+    return jsonify({"message": "Scenario initialized!"})
+
+@main.route('/api/game/start_round', methods=['POST'])
+def start_round():
+    # Logic to start a round
+    return jsonify({"message": "Round started!"})
+
+@main.route('/api/game/make_decision', methods=['POST'])
+def make_decision():
+    data = request.json
+    # Logic to process player decision
+    return jsonify({"message": "Decision made!"})
+
+@main.route('/api/game/end_session', methods=['POST'])
+def end_session():
+    # Logic to end a game session
+    return jsonify({"message": "Game session ended!"})
