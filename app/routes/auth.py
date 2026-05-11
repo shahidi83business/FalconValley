@@ -5,7 +5,7 @@ import jwt
 import datetime
 import smtplib
 
-from .models import (
+from ..models import (
     User,
     UserProfile,
     RoundSession,
@@ -14,8 +14,7 @@ from .models import (
     Opponent,
 )
 
-main = Blueprint('main', __name__)
-
+auth_bp = Blueprint("auth", __name__)
 
 def _serialize_user(user):
     return {
@@ -35,7 +34,7 @@ def _get_bearer_token():
     return None
 
 
-@main.route('/')
+@auth_bp.route('/')
 def home():
     return render_template('index.html')
 
@@ -44,7 +43,7 @@ def home():
 # Forgot Password Endpoints
 # ---------------------------------------------------------------------------
 
-@main.route('/api/auth/forgot-password', methods=['POST'])
+@auth_bp.route('/api/auth/forgot-password', methods=['POST'])
 def forgot_password():
     data = request.json or {}
     user = User.objects(email=data.get('email')).first()
@@ -77,7 +76,7 @@ def forgot_password():
     return jsonify({"message": "Password reset link sent!"})
 
 
-@main.route('/api/auth/reset-password', methods=['POST'])
+@auth_bp.route('/api/auth/reset-password', methods=['POST'])
 def reset_password():
     data = request.json or {}
     try:
@@ -101,7 +100,7 @@ def reset_password():
 # Authentication Endpoints
 # ---------------------------------------------------------------------------
 
-@main.route('/api/auth/login', methods=['POST'])
+@auth_bp.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
     user = User.objects(email=data.get('username')).first()
@@ -118,8 +117,8 @@ def login():
     return jsonify({'token': token}), 200
 
 
-@main.route('/api/auth/me', methods=['GET'])
-@main.route('/auth/me', methods=['GET'])
+@auth_bp.route('/api/auth/me', methods=['GET'])
+@auth_bp.route('/auth/me', methods=['GET'])
 def auth_me():
     token = _get_bearer_token()
     if not token:
@@ -141,7 +140,7 @@ def auth_me():
     return jsonify(_serialize_user(user)), 200
 
 
-@main.route('/api/auth/register', methods=['POST'])
+@auth_bp.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.json or {}
     if User.objects(email=data.get('email')).first():
@@ -153,32 +152,3 @@ def register():
     new_user.save()
     return jsonify({'message': 'User registered successfully!'}), 201
 
-
-# ---------------------------------------------------------------------------
-# Game Session Endpoints
-# ---------------------------------------------------------------------------
-
-@main.route('/api/game/start', methods=['POST'])
-def start_game():
-    return jsonify({"message": "Game session started!"})
-
-
-@main.route('/api/game/initialize_scenario', methods=['POST'])
-def initialize_scenario():
-    return jsonify({"message": "Scenario initialized!"})
-
-
-@main.route('/api/game/start_round', methods=['POST'])
-def start_round():
-    return jsonify({"message": "Round started!"})
-
-
-@main.route('/api/game/make_decision', methods=['POST'])
-def make_decision():
-    data = request.json or {}
-    return jsonify({"message": "Decision made!"})
-
-
-@main.route('/api/game/end_session', methods=['POST'])
-def end_session():
-    return jsonify({"message": "Game session ended!"})
