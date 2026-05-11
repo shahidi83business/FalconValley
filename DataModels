@@ -77,3 +77,9 @@ key            : string
 value          : json (متن آزاد، JSON، عدد، آرایه…)
 created_at     : datetime
 updated_at     : datetime
+
+EconomyState
+------------
+id : string (UUID)
+session : Session
+round : Round

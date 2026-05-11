@@ -131,3 +131,27 @@ class MetaData(Document):
     value = DictField()
     created_at = DateTimeField(default=_now)
     updated_at = DateTimeField(default=_now)
+
+class EconomyState(Document):
+    meta = {
+        "collection": "economy_states",
+        "indexes": [
+            ("session", "round_number"),
+            "-created_at"
+        ],
+        "ordering": ["round_number"]
+    }
+
+    # --- Relations ---
+    session = ReferenceField(
+        "RoundSession",
+        required=True,
+        reverse_delete_rule=2  # CASCADE
+    )
+    round_number = IntField(required=True, min_value=0)
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "session_id": str(self.session.id),
+        }
