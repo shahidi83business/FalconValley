@@ -1,10 +1,10 @@
-import axios from 'axios';
+import apiClient from './apiClient';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:8008/api';
 
 export const fetchScenarios = async () => {
     try {
-        const response = await axios.get(`${API_BASE_URL}/scenarios`);
+        const response = await apiClient.get(`${API_BASE_URL}/scenarios`);
         return response.data;
     } catch (error) {
         console.error('Error fetching scenarios:', error);
@@ -14,7 +14,7 @@ export const fetchScenarios = async () => {
 
 export const submitDecision = async (decision) => {
     try {
-        const response = await axios.post(`${API_BASE_URL}/decisions`, decision);
+        const response = await apiClient.post(`${API_BASE_URL}/decisions`, decision);
         return response.data;
     } catch (error) {
         console.error('Error submitting decision:', error);

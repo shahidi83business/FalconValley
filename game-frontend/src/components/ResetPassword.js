@@ -47,7 +47,7 @@ const ResetPassword = () => {
       setMessage(response.message || 'Password has been reset successfully!');
       setIsSuccess(true);
     } catch (error) {
-      setMessage('Failed to reset password. The link may have expired.');
+      setMessage(error.userMessage || 'Failed to reset password. The link may have expired.');
       setIsSuccess(false);
     } finally {
       setIsLoading(false);

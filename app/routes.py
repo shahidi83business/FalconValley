@@ -1,30 +1,64 @@
 from flask import Blueprint, request, jsonify, render_template
-from app.models import User, UserProfile, RoundSession, Scenario, EconomyFunction, Opponent  # Assuming these are defined in models.py
+from flask import current_app as app
 from werkzeug.security import generate_password_hash
 import jwt
 import datetime
-from flask import current_app as app
 import smtplib
 
+from .models import (
+    User,
+    UserProfile,
+    RoundSession,
+    Scenario,
+    EconomyFunction,
+    Opponent,
+)
+
 main = Blueprint('main', __name__)
+
+
+def _serialize_user(user):
+    return {
+        'id': user.id,
+        'username': user.username,
+        'email': user.email,
+        'created_at': user.created_at.isoformat() if user.created_at else None,
+        'updated_at': user.updated_at.isoformat() if user.updated_at else None,
+    }
+
+
+def _get_bearer_token():
+    auth_header = request.headers.get('Authorization', '')
+    parts = auth_header.split()
+    if len(parts) == 2 and parts[0].lower() == 'bearer':
+        return parts[1]
+    return None
+
 
 @main.route('/')
 def home():
     return render_template('index.html')
 
+
+# ---------------------------------------------------------------------------
 # Forgot Password Endpoints
+# ---------------------------------------------------------------------------
 
 @main.route('/api/auth/forgot-password', methods=['POST'])
 def forgot_password():
-    data = request.json
-    user = User.query.filter_by(email=data['email']).first()
+    data = request.json or {}
+    user = User.objects(email=data.get('email')).first()
     if not user:
         return jsonify({"message": "Email not found!"}), 404
 
-    token = jwt.encode({
-        'user_id': user.id,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)
-    }, app.config['SECRET_KEY'], algorithm='HS256')
+    token = jwt.encode(
+        {
+            'user_id': user.id,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+        },
+        app.config['SECRET_KEY'],
+        algorithm='HS256',
+    )
 
     # Send email (simplified example, replace with a proper email service)
     try:
@@ -34,54 +68,117 @@ def forgot_password():
             server.sendmail(
                 'your-email@example.com',
                 user.email,
-                f"Subject: Password Reset\n\nClick the link to reset your password: http://localhost:3000/reset-password?token={token}"
+                f"Subject: Password Reset\n\nClick the link to reset your password: "
+                f"http://localhost:3000/reset-password?token={token}",
             )
     except Exception as e:
         return jsonify({"message": "Failed to send email!", "error": str(e)}), 500
 
     return jsonify({"message": "Password reset link sent!"})
 
+
 @main.route('/api/auth/reset-password', methods=['POST'])
 def reset_password():
-    data = request.json
+    data = request.json or {}
     try:
-        token_data = jwt.decode(data['token'], app.config['SECRET_KEY'], algorithms=['HS256'])
-        user = User.query.get(token_data['user_id'])
+        token_data = jwt.decode(
+            data['token'], app.config['SECRET_KEY'], algorithms=['HS256']
+        )
+        user = User.objects(id=token_data['user_id']).first()
         if not user:
             return jsonify({"message": "Invalid token!"}), 400
 
-        user.password = generate_password_hash(data['new_password'], method='sha256')
-        user.save()  # Assuming a save method is defined in the model
+        user.password = generate_password_hash(data['new_password'])
+        user.save()
         return jsonify({"message": "Password reset successfully!"})
     except jwt.ExpiredSignatureError:
         return jsonify({"message": "Token has expired!"}), 400
     except Exception as e:
         return jsonify({"message": "Invalid token!", "error": str(e)}), 400
 
+
+# ---------------------------------------------------------------------------
+# Authentication Endpoints
+# ---------------------------------------------------------------------------
+
+@main.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json() or {}
+    user = User.objects(email=data.get('username')).first()
+    if not user or not user.check_password(data.get('password', '')):
+        return jsonify({'message': 'Invalid email or password!'}), 401
+    token = jwt.encode(
+        {
+            'user_id': user.id,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+        },
+        app.config['SECRET_KEY'],
+        algorithm='HS256',
+    )
+    return jsonify({'token': token}), 200
+
+
+@main.route('/api/auth/me', methods=['GET'])
+@main.route('/auth/me', methods=['GET'])
+def auth_me():
+    token = _get_bearer_token()
+    if not token:
+        return jsonify({'message': 'Authorization token is required!'}), 401
+
+    try:
+        token_data = jwt.decode(
+            token, app.config['SECRET_KEY'], algorithms=['HS256']
+        )
+    except jwt.ExpiredSignatureError:
+        return jsonify({'message': 'Token has expired!'}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({'message': 'Invalid token!'}), 401
+
+    user = User.objects(id=token_data.get('user_id')).first()
+    if not user:
+        return jsonify({'message': 'User not found!'}), 404
+
+    return jsonify(_serialize_user(user)), 200
+
+
+@main.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.json or {}
+    if User.objects(email=data.get('email')).first():
+        return jsonify({'message': 'User already exists!'}), 400
+    new_user = User(
+        email=data['email'],
+        password=generate_password_hash(data['password']),
+    )
+    new_user.save()
+    return jsonify({'message': 'User registered successfully!'}), 201
+
+
+# ---------------------------------------------------------------------------
 # Game Session Endpoints
+# ---------------------------------------------------------------------------
 
 @main.route('/api/game/start', methods=['POST'])
 def start_game():
-    # Logic to start a game session
     return jsonify({"message": "Game session started!"})
+
 
 @main.route('/api/game/initialize_scenario', methods=['POST'])
 def initialize_scenario():
-    # Logic to initialize a scenario
     return jsonify({"message": "Scenario initialized!"})
+
 
 @main.route('/api/game/start_round', methods=['POST'])
 def start_round():
-    # Logic to start a round
     return jsonify({"message": "Round started!"})
+
 
 @main.route('/api/game/make_decision', methods=['POST'])
 def make_decision():
-    data = request.json
-    # Logic to process player decision
+    data = request.json or {}
     return jsonify({"message": "Decision made!"})
+
 
 @main.route('/api/game/end_session', methods=['POST'])
 def end_session():
-    # Logic to end a game session
     return jsonify({"message": "Game session ended!"})

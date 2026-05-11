@@ -53,7 +53,7 @@ const Register = () => {
         window.location.href = '/login';
       }, 2000);
     } catch (error) {
-      setErrors({ general: 'Registration failed. Please try again.' });
+      setErrors({ general: error.userMessage || 'Registration failed. Please try again.' });
     } finally {
       setIsLoading(false);
     }

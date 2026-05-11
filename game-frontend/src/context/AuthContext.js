@@ -40,7 +40,14 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, handleLogin, handleRegister, handleLogout }}
+      value={{
+        user,
+        token,
+        isAuthenticated: Boolean(token),
+        handleLogin,
+        handleRegister,
+        handleLogout,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const ChoiceButton = ({ label, onClick }) => {
+    const [isHovered, setIsHovered] = useState(false);
+
     const buttonStyle = {
         padding: '12px 20px',
         backgroundColor: '#667eea',
@@ -25,7 +27,12 @@ const ChoiceButton = ({ label, onClick }) => {
     };
 
     return (
-        <button onClick={onClick} style={buttonStyle} onMouseEnter={() => (buttonStyle = buttonHoverStyle)} onMouseLeave={() => (buttonStyle = buttonStyle)}>
+        <button
+            onClick={onClick}
+            style={isHovered ? buttonHoverStyle : buttonStyle}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+        >
             {label}
         </button>
     );

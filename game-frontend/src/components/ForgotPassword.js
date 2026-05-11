@@ -19,7 +19,7 @@ const ForgotPassword = () => {
       setMessage(response.message || 'Password reset link has been sent to your email!');
       setIsSuccess(true);
     } catch (error) {
-      setMessage('Failed to send password reset link. Please check your email and try again.');
+      setMessage(error.userMessage || 'Failed to send password reset link. Please check your email and try again.');
       setIsSuccess(false);
     } finally {
       setIsLoading(false);

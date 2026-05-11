@@ -1,18 +1,22 @@
+from flask_mongoengine import mongoengine 
+from mongoengine import Document, StringField, DateTimeField, DictField, ReferenceField, ListField, IntField, EnumField
+from datetime import datetime
+import uuid
+from enum import Enum
 
-#enums
-class StatusEnum(enum.Enum):
+now = datetime.utcnow()
+
+class StatusEnum(Enum):
     in_progress = "in_progress"
     completed = "completed"
     abandoned = "abandoned"
 
-
-class MetaParentType(enum.Enum):
+class MetaParentType(Enum):
     round_session = "round_session"
     decision = "decision"
     scenario = "scenario"
     user = "user"
     opponent = "opponent"
-
 
 # Data models
 class EconomyFunction(Document):
@@ -20,7 +24,7 @@ class EconomyFunction(Document):
     name = StringField(required=True)
     path = StringField()
     parameters = DictField()
-    category = ReferenceField(Category)
+    category = ReferenceField('Category')
     created_at = DateTimeField(default=now)
     updated_at = DateTimeField(default=now)
 
@@ -96,4 +100,3 @@ class MetaData(Document):
     value = DictField()
     created_at = DateTimeField(default=now)
     updated_at = DateTimeField(default=now)
-

@@ -1,8 +1,10 @@
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
   const { handleLogin } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -11,8 +13,14 @@ const Login = () => {
   const onSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    await handleLogin({ username, password });
-    setIsLoading(false);
+    try {
+      await handleLogin({ username, password });
+      navigate('/', { replace: true });
+    } catch (error) {
+      console.error('Login failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const containerStyle = {
