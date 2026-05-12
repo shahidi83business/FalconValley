@@ -22,7 +22,7 @@ def scenario_to_dict(s):
 # ----------------------------
 # Create Scenario
 # ----------------------------
-@scenarios_bp.route("/scenarios", methods=["POST"])
+@scenarios_bp.route("/api/scenarios", methods=["POST"])
 def create_scenario():
     data = request.get_json(silent=True) or {}
 
@@ -69,7 +69,7 @@ def create_scenario():
 # ----------------------------
 # Get Scenario by ID
 # ----------------------------
-@scenarios_bp.route("/scenarios/<scenario_id>", methods=["GET"])
+@scenarios_bp.route("/api/scenarios/<scenario_id>", methods=["GET"])
 def get_scenario(scenario_id):
     scenario = Scenario.objects(id=scenario_id).first()
 
@@ -84,7 +84,7 @@ def get_scenario(scenario_id):
 # ----------------------------
 # List Scenarios
 # ----------------------------
-@scenarios_bp.route("/scenarios", methods=["GET"])
+@scenarios_bp.route("/api/scenarios", methods=["GET"])
 def list_scenarios():
     category_id = request.args.get("category_id")
     text_query = request.args.get("q")
@@ -113,7 +113,7 @@ def list_scenarios():
 # ----------------------------
 # Update Scenario
 # ----------------------------
-@scenarios_bp.route("/scenarios/<scenario_id>", methods=["PUT"])
+@scenarios_bp.route("/api/scenarios/<scenario_id>", methods=["PUT"])
 def update_scenario(scenario_id):
     scenario = Scenario.objects(id=scenario_id).first()
 
@@ -166,7 +166,7 @@ def update_scenario(scenario_id):
 # ----------------------------
 # Delete Scenario
 # ----------------------------
-@scenarios_bp.route("/scenarios/<scenario_id>", methods=["DELETE"])
+@scenarios_bp.route("/api/scenarios/<scenario_id>", methods=["DELETE"])
 def delete_scenario(scenario_id):
     scenario = Scenario.objects(id=scenario_id).first()
 
@@ -202,7 +202,7 @@ def get_category_scenarios(category_id):
 # ----------------------------
 # Get Random Scenario
 # ----------------------------
-@scenarios_bp.route("/scenarios/random", methods=["GET"])
+@scenarios_bp.route("/api/scenarios/random", methods=["GET"])
 def get_random_scenario():
     category_id = request.args.get("category_id")
 
@@ -223,7 +223,7 @@ def get_random_scenario():
 # ----------------------------
 # Validate Answer
 # ----------------------------
-@scenarios_bp.route("/scenarios/<scenario_id>/validate-answer", methods=["POST"])
+@scenarios_bp.route("/api/scenarios/<scenario_id>/validate-answer", methods=["POST"])
 def validate_answer(scenario_id):
     scenario = Scenario.objects(id=scenario_id).first()
 

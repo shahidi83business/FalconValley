@@ -141,14 +141,17 @@ class EconomyState(Document):
         ],
         "ordering": ["round_number"]
     }
+    id = StringField(primary_key=True, default=lambda: str(uuid.uuid4()))
 
-    # --- Relations ---
     session = ReferenceField(
         "RoundSession",
         required=True,
         reverse_delete_rule=2  # CASCADE
     )
     round_number = IntField(required=True, min_value=0)
+
+    created_at = DateTimeField(default=_now)
+    updated_at = DateTimeField(default=_now)
 
     def to_dict(self):
         return {

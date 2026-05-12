@@ -4,7 +4,7 @@ from flask_mongoengine import MongoEngine
 import pkgutil
 import importlib
 db = MongoEngine()
-
+from .routes import ALL_BLUEPRINTS
 def register_blueprints(app):
 
     from . import routes
@@ -28,6 +28,7 @@ def create_app():
     db.init_app(app)
 
     # Register blueprints
-    register_blueprints(app)
-
+    #register_blueprints(app)
+    for blueprint in ALL_BLUEPRINTS:
+        app.register_blueprint(blueprint)
     return app

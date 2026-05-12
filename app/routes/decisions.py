@@ -32,7 +32,7 @@ def decision_to_dict(d):
 # ----------------------------
 # Create Decision
 # ----------------------------
-@decisions_bp.route("/decisions", methods=["POST"])
+@decisions_bp.route("/api/decisions", methods=["POST"])
 def create_decision():
 
     data = request.get_json()
@@ -71,7 +71,7 @@ def create_decision():
 # ----------------------------
 # Get Decision
 # ----------------------------
-@decisions_bp.route("/decisions/<decision_id>", methods=["GET"])
+@decisions_bp.route("/api/decisions/<decision_id>", methods=["GET"])
 def get_decision(decision_id):
 
     decision = Decision.objects(id=decision_id).first()
@@ -154,7 +154,7 @@ def strategy_analysis(user_id):
 # ----------------------------
 # Resolve Decision
 # ----------------------------
-@decisions_bp.route("/decisions/<decision_id>/resolve", methods=["POST"])
+@decisions_bp.route("/api/decisions/<decision_id>/resolve", methods=["POST"])
 def resolve_decision(decision_id):
 
     decision = Decision.objects(id=decision_id).first()

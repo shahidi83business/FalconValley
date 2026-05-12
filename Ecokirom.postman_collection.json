@@ -1,0 +1,532 @@
+{
+  "info": {
+    "name": "EcoKirom API",
+    "description": "Postman collection generated from the Flask routes in app/routes. Set base_url to your backend host, then run Register/Login and save the returned token into the token variable for authenticated requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"player@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.collectionVariables.set('token', json.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"player@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                { "key": "token", "value": "{{token}}", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Get Current User Legacy Path",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                { "key": "token", "value": "{{token}}", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"player@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/forgot-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "forgot-password"]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"new_password\": \"newPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/reset-password",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "reset-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sustainability\",\n  \"description\": \"Sustainability scenarios\",\n  \"function_ids\": [\"{{function_id}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["categories"]
+            }
+          }
+        },
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories",
+              "host": ["{{base_url}}"],
+              "path": ["categories"]
+            }
+          }
+        },
+        {
+          "name": "Get Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Sustainability\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Scenarios",
+      "item": [
+        {
+          "name": "Create Scenario",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"A factory can upgrade filters or keep old equipment. What should it do?\",\n  \"options\": [\"Upgrade filters\", \"Keep old equipment\"],\n  \"correct_option\": 0,\n  \"category_id\": \"{{category_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/scenarios",
+              "host": ["{{base_url}}"],
+              "path": ["scenarios"]
+            }
+          }
+        },
+        {
+          "name": "List Scenarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/scenarios?category_id={{category_id}}&q=&limit=50&skip=0",
+              "host": ["{{base_url}}"],
+              "path": ["scenarios"],
+              "query": [
+                { "key": "category_id", "value": "{{category_id}}", "disabled": true },
+                { "key": "q", "value": "", "disabled": true },
+                { "key": "limit", "value": "50" },
+                { "key": "skip", "value": "0" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Random Scenario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/scenarios/random?category_id={{category_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["scenarios", "random"],
+              "query": [
+                { "key": "category_id", "value": "{{category_id}}", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Scenario",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/scenarios/{{scenario_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["scenarios", "{{scenario_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Scenario",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Updated scenario text\",\n  \"options\": [\"Option A\", \"Option B\"],\n  \"correct_option\": 0,\n  \"category_id\": \"{{category_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/scenarios/{{scenario_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["scenarios", "{{scenario_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Scenario",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/scenarios/{{scenario_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["scenarios", "{{scenario_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Scenarios By Category",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/categories/{{category_id}}/scenarios",
+              "host": ["{{base_url}}"],
+              "path": ["categories", "{{category_id}}", "scenarios"]
+            }
+          }
+        },
+        {
+          "name": "Validate Answer",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selected_option\": 0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/scenarios/{{scenario_id}}/validate-answer",
+              "host": ["{{base_url}}"],
+              "path": ["scenarios", "{{scenario_id}}", "validate-answer"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "item": [
+        {
+          "name": "Start Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/sessions",
+              "host": ["{{base_url}}"],
+              "path": ["sessions"]
+            }
+          }
+        },
+        {
+          "name": "Get Session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/sessions/{{session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["sessions", "{{session_id}}"]
+            }
+          }
+        },
+        {
+          "name": "End Session",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/sessions/{{session_id}}/end",
+              "host": ["{{base_url}}"],
+              "path": ["sessions", "{{session_id}}", "end"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rounds",
+      "item": [
+        {
+          "name": "Start Round",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"session_id\": \"{{session_id}}\",\n  \"scenario_id\": \"{{scenario_id}}\",\n  \"round_number\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/rounds",
+              "host": ["{{base_url}}"],
+              "path": ["rounds"]
+            }
+          }
+        },
+        {
+          "name": "Get Round",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/rounds/{{round_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["rounds", "{{round_id}}"]
+            }
+          }
+        },
+        {
+          "name": "End Round",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/rounds/{{round_id}}/end",
+              "host": ["{{base_url}}"],
+              "path": ["rounds", "{{round_id}}", "end"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Decisions",
+      "item": [
+        {
+          "name": "Create Decision",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"scenario_id\": \"{{scenario_id}}\",\n  \"round_id\": \"{{round_id}}\",\n  \"selected_option\": 0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/decisions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "decisions"]
+            }
+          }
+        },
+        {
+          "name": "Get Decision",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/decisions/{{decision_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "decisions", "{{decision_id}}"]
+            }
+          }
+        },
+        {
+          "name": "List Decisions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/decisions?user_id={{user_id}}&round_id={{round_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["decisions"],
+              "query": [
+                { "key": "user_id", "value": "{{user_id}}", "disabled": true },
+                { "key": "round_id", "value": "{{round_id}}", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Round Decisions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/rounds/{{round_id}}/decisions",
+              "host": ["{{base_url}}"],
+              "path": ["rounds", "{{round_id}}", "decisions"]
+            }
+          }
+        },
+        {
+          "name": "Get User Strategy Analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}/strategy-analysis",
+              "host": ["{{base_url}}"],
+              "path": ["users", "{{user_id}}", "strategy-analysis"]
+            }
+          }
+        },
+        {
+          "name": "Resolve Decision",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/decisions/{{decision_id}}/resolve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "decisions", "{{decision_id}}", "resolve"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8008" },
+    { "key": "token", "value": "" },
+    { "key": "reset_token", "value": "" },
+    { "key": "user_id", "value": "" },
+    { "key": "category_id", "value": "" },
+    { "key": "function_id", "value": "" },
+    { "key": "scenario_id", "value": "" },
+    { "key": "session_id", "value": "" },
+    { "key": "round_id", "value": "" },
+    { "key": "decision_id", "value": "" }
+  ]
+}
