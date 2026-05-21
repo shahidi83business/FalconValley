@@ -37,10 +37,126 @@ games = {}
 player_game = {}
 profile_edit_state = {}
 
+WAR_PRESSURE_INTERVAL = 3
+WAR_PRESSURE_DAMAGE = 1
 
-# -------------------------
-# Game Creation
-# -------------------------
+war_pressure_tasks = {}
+
+
+async def war_pressure(game_id):
+
+    while True:
+
+        await asyncio.sleep(WAR_PRESSURE_INTERVAL)
+
+        if game_id not in games:
+            return
+
+        game = games[game_id]
+
+        if game["state"] != "war_decision":
+            return
+
+        for p in game["players"]:
+            uid = p["id"]
+
+            if uid not in game["war_choices"]:
+                game["war_penalty"][uid] -= WAR_PRESSURE_DAMAGE
+
+                await bot.send_message(
+                    uid,
+                    f"⏳ Pressure! -{WAR_PRESSURE_DAMAGE} score"
+                )
+
+async def start_chicken(game_id):
+    game = games[game_id]
+    game["state"] = "war_decision"
+    game["chat_enabled"] = False
+
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "🕊 Yield", "callback_data": "war_yield"},
+                {"text": "🚗 Straight", "callback_data": "war_straight"},
+            ]
+        ]
+    }
+
+    for p in game["players"]:
+        await bot.send_message(p["id"], "War mode: choose your move:", keyboard)
+    war_pressure_tasks[game_id] = asyncio.create_task(war_pressure(game_id))
+
+
+
+async def resolve_war_advantage(game_id):
+    game = games[game_id]
+    p1, p2 = game["players"]
+    s1 = game["strategy"].get(p1["id"])
+    s2 = game["strategy"].get(p2["id"])
+
+    # امتیازدهی ساده برای حالت «یکی جنگ یکی مذاکره»
+    if s1 == "war" and s2 == "negotiation":
+        r1, r2 = 3, -2
+    elif s1 == "negotiation" and s2 == "war":
+        r1, r2 = -2, 3
+    else:
+        r1, r2 = 0, 0  # نباید رخ دهد
+
+    result = f"""
+Market: {game['market'].upper()}
+Mode: WAR (Advantage)
+
+{p1['name']}: {s1}
+{p2['name']}: {s2}
+
+Scores:
+{p1['name']}: {r1}
+{p2['name']}: {r2}
+"""
+    for p in game["players"]:
+        await bot.send_message(p["id"], result)
+
+    del player_game[p1["id"]]
+    del player_game[p2["id"]]
+    del games[game_id]
+
+
+async def resolve_chicken(game_id):
+    game = games[game_id]
+    p1, p2 = game["players"]
+    c1 = game["war_choices"][p1["id"]]   # "yield" | "straight"
+    c2 = game["war_choices"][p2["id"]]
+
+    # ماتریس متعادل پیشنهادی
+    if c1 == "yield" and c2 == "yield":
+        r1, r2 = 0, 0
+    elif c1 == "yield" and c2 == "straight":
+        r1, r2 = -1, 2
+    elif c1 == "straight" and c2 == "yield":
+        r1, r2 = 2, -1
+    else:
+        r1, r2 = -5, -5
+
+    result = f"""
+Market: {game['market'].upper()}
+Mode: CHICKEN (War)
+
+{p1['name']}: {c1}
+{p2['name']}: {c2}
+
+Scores:
+{p1['name']}: {r1}
+{p2['name']}: {r2}
+"""
+    r1 += game["war_penalty"][p1["id"]]
+    r2 += game["war_penalty"][p2["id"]]
+
+    for p in game["players"]:
+        await bot.send_message(p["id"], result)
+
+    del player_game[p1["id"]]
+    del player_game[p2["id"]]
+    del games[game_id]
 
 async def create_game(p1, p2, market):
 
@@ -54,7 +170,8 @@ async def create_game(p1, p2, market):
         "market": market,
         "strategy": {},          # user_id -> "negotiation" | "war"
         "mode": None,            # "prisoner" | "chicken" | "war_advantage"
-        "war_choices": {}        # user_id -> "yield" | "straight"
+        "war_choices": {},        # user_id -> "yield" | "straight"
+        "war_penalty": {p1["id"]: 0, p2["id"]: 0}
     }
 
     player_game[p1["id"]] = game_id
@@ -62,12 +179,15 @@ async def create_game(p1, p2, market):
 
     keyboard = {
         "inline_keyboard": [
-            [{"text": "Show Scenario", "callback_data": "show_scenario"}]
+            [
+                {"text": "🤝 Negotiation", "callback_data": "strategy_negotiation"},
+                {"text": "⚔️ War", "callback_data": "strategy_war"},
+            ]
         ]
     }
 
-    await bot.send_message(p1["id"], f"Matched in {market.upper()} market!", keyboard)
-    await bot.send_message(p2["id"], f"Matched in {market.upper()} market!", keyboard)
+    await bot.send_message(p1["id"], f"Matched in {market.upper()} market!\nChoose your approach:", keyboard)
+    await bot.send_message(p2["id"], f"Matched in {market.upper()} market!\nChoose your approach:", keyboard)
 
 
 # -------------------------
@@ -232,9 +352,6 @@ async def handle_text_message(msg):
     game = games[game_id]
 
     if game["chat_enabled"]:
-
-        await bot.send_message(user_id, f"You: {text}")
-
         for p in game["players"]:
             if p["id"] != user_id:
                 await bot.send_message(p["id"], f"{user_name}: {text}")
@@ -272,15 +389,12 @@ async def get_or_create_user(user_id, default_first_name=None):
 
 
 async def handle_callback(callback):
-
     user_id = callback["from"]["id"]
     data = callback["data"]
 
     # --- Market Selection ---
     if data.startswith("market_"):
-
         market = data.split("_")[1]
-        print("psg is on ",market)
         if waiting_markets[market] is None:
             waiting_markets[market] = callback["from"]
             await bot.send_message(user_id, f"Waiting for opponent in {market} market...")
@@ -288,41 +402,67 @@ async def handle_callback(callback):
             opponent = waiting_markets[market]
             waiting_markets[market] = None
 
-            p1 = {
-                "id": opponent["id"],
-                "name": opponent["first_name"]
-            }
-
-            p2 = {
-                "id": callback["from"]["id"],
-                "name": callback["from"]["first_name"]
-            }
+            p1 = {"id": opponent["id"], "name": opponent["first_name"]}
+            p2 = {"id": callback["from"]["id"], "name": callback["from"]["first_name"]}
 
             await create_game(p1, p2, market)
-
         return
-        
+
+    # --- Profile edit allowed even outside game ---
+    if data in ["edit_first_name", "edit_last_name", "edit_bio"] and user_id not in player_game:
+        await start_profile_edit(user_id, data)
+        return
+
+    # از اینجا به بعد باید داخل بازی باشد
+    if user_id not in player_game:
+        return
+
     game_id = player_game[user_id]
     game = games[game_id]
 
-    if user_id not in player_game:
-        # اجازه بده حتی خارج از بازی هم پروفایل را ویرایش کند
-        if data in ["edit_first_name", "edit_last_name", "edit_bio"]:
-            await start_profile_edit(user_id, data)
+    # --- Strategy selection (NEW) ---
+    if data.startswith("strategy_") and game["state"] == "waiting_scenario":
+        strategy = data.split("_", 1)[1]  # "negotiation" | "war"
+        game["strategy"][user_id] = strategy
+        await bot.send_message(user_id, f"You chose: {strategy}")
+
+        if len(game["strategy"]) == 2:
+            s_values = set(game["strategy"].values())
+            if s_values == {"negotiation"}:
+                game["mode"] = "prisoner"
+                await start_negotiation(game_id)
+            elif s_values == {"war"}:
+                game["mode"] = "chicken"
+                await start_chicken(game_id)
+            else:
+                game["mode"] = "war_advantage"
+                await resolve_war_advantage(game_id)
         return
 
-    if data == "show_scenario" and game["state"] == "waiting_scenario":
-        await start_negotiation(game_id)
-
-    elif data in ["cooperate", "async defect"] and game["state"] == "decision":
+    # --- Prisoner decision ---
+    if data in ["cooperate", "defect"] and game["state"] == "decision":
         game["choices"][user_id] = data
         await bot.send_message(user_id, f"You chose: {data}")
-
         if len(game["choices"]) == 2:
             await resolve_game(game_id)
+        return
 
-    elif data in ["edit_first_name", "edit_last_name", "edit_bio"]:
-        start_profile_edit(user_id, data)
+    # --- Chicken decision ---
+    if data in ["war_yield", "war_straight"] and game["state"] == "war_decision":
+        move = "yield" if data == "war_yield" else "straight"
+        game["war_choices"][user_id] = move
+        await bot.send_message(user_id, f"You chose: {move}")
+        if len(game["war_choices"]) == 2:
+            task = war_pressure_tasks.get(game_id)
+            if task:
+                task.cancel()
+            await resolve_chicken(game_id)
+        return
+
+    # --- Profile edit inside game too ---
+    if data in ["edit_first_name", "edit_last_name", "edit_bio"]:
+        await start_profile_edit(user_id, data)
+        return
 
 
 async def handle_profile(user_id):
