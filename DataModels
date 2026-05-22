@@ -1,3 +1,4 @@
+DataModels:
 created_at and updated_at are on all data models
 
 
@@ -45,6 +46,7 @@ UserProfile
 ------------
 id : string
 user : User
+market_exp : dict
 
 Category 
 ----------
@@ -81,5 +83,6 @@ updated_at     : datetime
 EconomyState
 ------------
 id : string (UUID)
+additional_markets : json
 session : Session
 round : Round

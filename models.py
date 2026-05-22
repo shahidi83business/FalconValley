@@ -81,7 +81,9 @@ class UserProfile(BaseDoc):
     wins: int = 0
     loses: int = 0
     score: int = 0
-
+    market_experience: dict[str, int] = {}
+    unlocked_markets: list[str] = []
+    
     class Settings:
         name = "user_profiles"
 

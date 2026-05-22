@@ -27,6 +27,24 @@ bot = TelegramBotAPI(BASE_URL)
 # Game Storage
 # -------------------------
 
+MARKET_UNLOCKS = {
+    "energy_pro": {
+        "base": "energy",
+        "required_xp": 20,
+        "title": "⚡ Energy Pro Market"
+    },
+    "tech_pro": {
+        "base": "tech",
+        "required_xp": 30,
+        "title": "💻 Tech Pro Market"
+    },
+    "agro_elite": {
+        "base": "agro",
+        "required_xp": 40,
+        "title": "🌾 Agro Elite Market"
+    }
+}
+
 waiting_markets = {
     "energy": None,
     "tech": None,
@@ -67,6 +85,17 @@ async def war_pressure(game_id):
                     uid,
                     f"⏳ Pressure! -{WAR_PRESSURE_DAMAGE} score"
                 )
+
+async def add_market_xp(user_id, market_id: str, amount: int = 1):
+    profile = await UserProfile.find_one(UserProfile.user_id == user_id)
+    if not profile:
+        return None
+
+    current = profile.market_experience.get(market_id, 0)
+    profile.market_experience[market_id] = current + amount
+    
+    await profile.save()
+    return profile.market_experience[market_id]
 
 async def start_chicken(game_id):
     game = games[game_id]
@@ -292,7 +321,13 @@ Scores:
 
     for p in game["players"]:
         await bot.send_message(p["id"], result)
+        await add_market_xp(p["id"], market, 2)
 
+        new_markets = await check_market_unlocks(p["id"])
+
+        if new_markets:
+            msg = "🎉 New Markets Unlocked:\n" + "\n".join("• " + m for m in new_markets)
+            await bot.send_message(p["id"], msg)
     del player_game[p1["id"]]
     del player_game[p2["id"]]
     del games[game_id]
@@ -302,18 +337,55 @@ Scores:
 # Command Handling
 # -------------------------
 
+
+async def check_market_unlocks(user_id: int):
+    profile = await UserProfile.find_one(UserProfile.user_id == user_id)
+    if not profile:
+        return []
+
+    unlocked_now = []
+
+    for market_key, info in MARKET_UNLOCKS.items():
+        base = info["base"]
+        req = info["required_xp"]
+
+        # اگر از قبل باز شده بود → رد شود
+        if market_key in profile.unlocked_markets:
+            continue
+
+        # XP کاربر در مارکت پایه
+        xp = profile.market_experience.get(base, 0)
+
+        # اگر به حد لازم رسیده:
+        if xp >= req:
+            profile.unlocked_markets.append(market_key)
+            unlocked_now.append(info["title"])
+
+    await profile.save()
+    return unlocked_now
+
 async def handle_play(user):
 
     if user["id"] in player_game:
         await bot.send_message(user["id"], "Already in game.")
         return
 
+    profile = await UserProfile.find_one(UserProfile.telegram_id == user["id"])
+
+    base_buttons = [
+        {"text": "⚡ Energy Market", "callback_data": "market_energy"},
+        {"text": "💻 Tech Market", "callback_data": "market_tech"},
+        {"text": "🌾 Agro Market", "callback_data": "market_agro"},
+    ]
+
+    extra_buttons = []
+    if profile:
+        for m in profile.unlocked_markets:
+            title = MARKET_UNLOCKS[m]["title"]
+            extra_buttons.append({"text": title, "callback_data": f"market_{m}"})
+
     keyboard = {
-        "inline_keyboard": [
-            [{"text": "⚡ Energy Market", "callback_data": "market_energy"}],
-            [{"text": "💻 Tech Market", "callback_data": "market_tech"}],
-            [{"text": "🌾 Agro Market", "callback_data": "market_agro"}]
-        ]
+        "inline_keyboard": [[btn] for btn in base_buttons + extra_buttons]
     }
 
     await bot.send_message(user["id"], "Choose a market:", keyboard)
