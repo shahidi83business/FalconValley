@@ -83,7 +83,7 @@ class UserProfile(BaseDoc):
     score: int = 0
     market_experience: dict[str, int] = {}
     unlocked_markets: list[str] = []
-    
+    balance = fields.IntField(default=100)
     class Settings:
         name = "user_profiles"
 

@@ -231,6 +231,17 @@ async def negotiation_timer(game_id):
         await start_decision(game_id)
 
 
+async def deduct_entry_fee(user_id, market_id):
+    bp = market_factory.get(market_id)
+    fee = bp.entry_fee if bp else 10 # هزینه پیش‌فرض اگر پیدا نشد
+
+    profile = await UserProfile.find_one(UserProfile.telegram_id == user_id)
+    if profile.balance >= fee:
+        profile.balance -= fee
+        await profile.save()
+        return True
+    return False
+
 async def start_negotiation(game_id):
 
     game = games[game_id]
@@ -531,9 +542,13 @@ async def handle_callback(callback):
     if data.startswith("market_"):
         market = data.split("market_", 1)[1]
 
+        # ایجاد داینامیک در waiting_markets اگر وجود نداشت
+        if market not in waiting_markets:
+            waiting_markets[market] = None
+
         if waiting_markets[market] is None:
             waiting_markets[market] = callback["from"]
-            await bot.send_message(user_id, f"Waiting for opponent in {market} market...")
+            await bot.send_message(user_id, f"Waiting for opponent in market: {market}...")
         else:
             opponent = waiting_markets[market]
             waiting_markets[market] = None
