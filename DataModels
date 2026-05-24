@@ -86,3 +86,14 @@ id : string (UUID)
 additional_markets : json
 session : Session
 round : Round
+
+Market 
+--------
+id : string ( UUID)
+display_name : string
+required_xp : int
+entry_fee : int
+base_market : Market
+payoff : dict
+allowed_modes : list
+rag_docs : list[str]

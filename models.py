@@ -88,6 +88,19 @@ class UserProfile(BaseDoc):
         name = "user_profiles"
 
 
+class Market(BaseDoc):
+    market_id: str = Indexed(unique=True) # ID یکتا
+    display_name: str
+    required_xp: int
+    entry_fee: int
+    base_market: str
+    payoff: dict
+    allowed_modes: list
+    rag_docs: List[str]
+
+    class Settings:
+        name = "markets"
+
 class Opponent(BaseDoc):
     strategy_key: str
     parameters: Dict = Field(default_factory=dict)
@@ -151,7 +164,7 @@ class MetaData(BaseDoc):
 class EconomyState(BaseDoc):
     session: Link[RoundSession]
     round_number: int = Field(ge=0)
-
+    market_id: str  
     class Settings:
         name = "economy_states"
         indexes = [

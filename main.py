@@ -9,6 +9,7 @@ from models import User,UserProfile
 import os
 from dotenv import load_dotenv
 import asyncio
+from marketfactory import MarketFactory
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -26,6 +27,8 @@ bot = TelegramBotAPI(BASE_URL)
 # -------------------------
 # Game Storage
 # -------------------------
+market_factory = MarketFactory()
+market_creation_state = {}
 
 MARKET_UNLOCKS = {
     "energy_pro": {
@@ -286,15 +289,9 @@ async def resolve_game(game_id):
 
     # -------- MARKET PAYOFFS --------
 
-    if market == "energy":
-        coop, betray, both = 4, 6, -1
-
-    elif market == "tech":
-        coop, betray, both = 3, 5, 1
-
-    elif market == "agro":
-        coop, betray, both = 2, 3, 1
-
+    bp = market_factory.get(market)
+    payoffs = bp.payoff
+    coop, betray, both = payoffs["coop"], payoffs["betray"], payoffs["both"]
     # -------- PAYOFF LOGIC --------
 
     if c1 == "cooperate" and c2 == "cooperate":
@@ -370,7 +367,7 @@ async def handle_play(user):
         await bot.send_message(user["id"], "Already in game.")
         return
 
-    profile = await UserProfile.find_one(UserProfile.telegram_id == user["id"])
+    profile = await UserProfile.find_one(UserProfile.id == user["id"])
 
     base_buttons = [
         {"text": "⚡ Energy Market", "callback_data": "market_energy"},
@@ -387,6 +384,18 @@ async def handle_play(user):
     keyboard = {
         "inline_keyboard": [[btn] for btn in base_buttons + extra_buttons]
     }
+
+    can_create = False
+    if profile:
+        for base in ["energy", "tech", "agro"]:
+            if profile.market_experience.get(base, 0) >= 20:
+                can_create = True
+                break
+
+    if can_create:
+        keyboard["inline_keyboard"].append([
+            {"text": "🧠 Generate New Market (AI)", "callback_data": "market_gen_start"}
+        ])
 
     await bot.send_message(user["id"], "Choose a market:", keyboard)
 
@@ -416,6 +425,30 @@ async def handle_text_message(msg):
         await handle_profile(user_id)
         return
 
+    if user_id in market_creation_state:
+        st = market_creation_state[user_id]
+        summary = text.strip()
+
+        await bot.send_message(user_id, "Designing your market with AI...")
+
+        bp = await market_factory.generate_market(
+            base_market=st["base_market"],
+            xp_required=st["xp_required"],
+            player_profile_summary=summary,
+        )
+
+        profile = await UserProfile.find_one(UserProfile.id == user_id)
+        if profile and bp.id not in profile.unlocked_markets:
+            profile.unlocked_markets.append(bp.id)
+            await profile.save()
+
+        del market_creation_state[user_id]
+
+        await bot.send_message(user_id, f"✅ New market created: {bp.display_name}\nID: {bp.id}")
+        # مستقیم منوی play رو دوباره نشون بده
+        await handle_play({"id": user_id, "name": user_name})
+        return
+
     # --- game chat mode ---
     if user_id not in player_game:
         return
@@ -441,7 +474,7 @@ async def start_profile_edit(user_id, field):
 
 async def get_or_create_user(user_id, default_first_name=None):
 
-    user = await UserProfile.find_one(UserProfile.telegram_id == user_id)
+    user = await UserProfile.find_one(UserProfile.id == user_id)
 
     if not user:
         user = UserProfile(
@@ -464,9 +497,40 @@ async def handle_callback(callback):
     user_id = callback["from"]["id"]
     data = callback["data"]
 
+    if data == "market_gen_start":
+        keyboard = {
+            "inline_keyboard": [
+                [{"text": "⚡ Based on Energy", "callback_data": "market_gen_base_energy"}],
+                [{"text": "💻 Based on Tech", "callback_data": "market_gen_base_tech"}],
+                [{"text": "🌾 Based on Agro", "callback_data": "market_gen_base_agro"}],
+            ]
+        }
+        await bot.send_message(user_id, "Choose a base market:", keyboard)
+        return
+
+    if data.startswith("market_gen_base_"):
+        base = data.split("market_gen_base_", 1)[1]
+
+        profile = await UserProfile.find_one(UserProfile.id == user_id)
+        if not profile:
+            await bot.send_message(user_id, "Profile not found.")
+            return
+
+        xp = profile.market_experience.get(base, 0)
+        if xp < 20:
+            await bot.send_message(user_id, f"You need at least 20 XP in {base} to generate a new market.")
+            return
+
+        # xp_required برای مارکت جدید: مثلاً xp فعلی + 10 (یا ثابت/پلکانی)
+        xp_required = xp + 10
+
+        market_creation_state[user_id] = {"base_market": base, "xp_required": xp_required}
+        await bot.send_message(user_id, "Send one sentence about your playstyle (AI will design the market name & rules):")
+        return
     # --- Market Selection ---
     if data.startswith("market_"):
-        market = data.split("_")[1]
+        market = data.split("market_", 1)[1]
+
         if waiting_markets[market] is None:
             waiting_markets[market] = callback["from"]
             await bot.send_message(user_id, f"Waiting for opponent in {market} market...")
@@ -535,6 +599,7 @@ async def handle_callback(callback):
     if data in ["edit_first_name", "edit_last_name", "edit_bio"]:
         await start_profile_edit(user_id, data)
         return
+
 
 
 async def handle_profile(user_id):
@@ -614,6 +679,7 @@ async def main():
 
     global session
     await connect_to_database()
+    await market_factory.load_from_db()
     await bot.start() 
 
     print("Bot started")
