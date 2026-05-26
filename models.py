@@ -146,6 +146,7 @@ class RoundSession(BaseDoc):
     ended_at: Optional[datetime] = None
     status: StatusEnum
     round: Optional[Link[Round]] = None
+    fsm_state: str = "idle"
 
     class Settings:
         name = "round_sessions"

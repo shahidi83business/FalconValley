@@ -10,6 +10,7 @@ import os
 from dotenv import load_dotenv
 import asyncio
 from marketfactory import MarketFactory
+from game_loop import get_game_session, remove_game_session
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -74,8 +75,9 @@ async def war_pressure(game_id):
             return
 
         game = games[game_id]
+        game_fsm = get_game_session(game_id)
 
-        if game["state"] != "war_decision":
+        if game_fsm.state != "war_decision":
             return
 
         for p in game["players"]:
@@ -102,7 +104,13 @@ async def add_market_xp(user_id, market_id: str, amount: int = 1):
 
 async def start_chicken(game_id):
     game = games[game_id]
-    game["state"] = "war_decision"
+
+
+    if game_fsm.state != "waiting_strategy":
+        print(f"[WARN] Game {game_id} FSM state={game_fsm.state}, expected 'waiting_strategy' for start_chicken")
+
+    game_fsm.start_war()
+
     game["chat_enabled"] = False
 
     keyboard = {
@@ -186,6 +194,10 @@ Scores:
     for p in game["players"]:
         await bot.send_message(p["id"], result)
 
+    game_fsm = get_game_session(game_id)
+    game_fsm.finish()           
+    remove_game_session(game_id)
+
     del player_game[p1["id"]]
     del player_game[p2["id"]]
     del games[game_id]
@@ -194,10 +206,14 @@ async def create_game(p1, p2, market):
 
     game_id = random.randint(1000, 9999)
 
+    game_fsm = get_game_session(game_id)
+    game_fsm.start_game()
+    await game_fsm.sync_db() 
+    
     games[game_id] = {
         "players": [p1, p2],
         "choices": {},
-        "state": "waiting_scenario",
+        "state": "waiting_strategy",
         "chat_enabled": False,
         "market": market,
         "strategy": {},          # user_id -> "negotiation" | "war"
@@ -245,7 +261,13 @@ async def deduct_entry_fee(user_id, market_id):
 async def start_negotiation(game_id):
 
     game = games[game_id]
-    game["state"] = "negotiation"
+    game_fsm = get_game_session(game_id)
+
+
+    if game_fsm.state != "waiting_strategy":
+        print(f"[WARN] Game {game_id} FSM state={game_fsm.state}, expected 'waiting_strategy' for start_negotiation")
+    game_fsm.start_negotiation()  # FSM: waiting_strategy -> negotiation
+
     game["chat_enabled"] = True
 
     scenario_text = """
@@ -269,7 +291,14 @@ async def start_decision(game_id):
         return
 
     game = games[game_id]
-    game["state"] = "decision"
+
+    game_fsm = get_game_session(game_id)
+    
+    if game_fsm.state not in ["waiting_strategy", "negotiation"]:
+        print(f"[WARN] Game {game_id} FSM state={game_fsm.state}, expected 'waiting_strategy' or 'negotiation' for start_decision")
+    
+    game_fsm.start_decision()  
+
     game["chat_enabled"] = False
 
     keyboard = {
@@ -336,6 +365,11 @@ Scores:
         if new_markets:
             msg = "🎉 New Markets Unlocked:\n" + "\n".join("• " + m for m in new_markets)
             await bot.send_message(p["id"], msg)
+
+    game_fsm = get_game_session(game_id)
+    game_fsm.finish()           
+    remove_game_session(game_id)
+
     del player_game[p1["id"]]
     del player_game[p2["id"]]
     del games[game_id]
@@ -572,8 +606,14 @@ async def handle_callback(callback):
     game = games[game_id]
 
     # --- Strategy selection (NEW) ---
-    if data.startswith("strategy_") and game["state"] == "waiting_scenario":
-        strategy = data.split("_", 1)[1]  # "negotiation" | "war"
+    if data.startswith("strategy_"):
+        game_fsm = get_game_session(game_id)
+
+        if not (game_fsm.state == "waiting_strategy"):
+            await bot.send_message(user_id, "It's not time to choose strategy.")
+            return
+
+        strategy = data.split("_", 1)[1]  
         game["strategy"][user_id] = strategy
         await bot.send_message(user_id, f"You chose: {strategy}")
 
@@ -591,7 +631,13 @@ async def handle_callback(callback):
         return
 
     # --- Prisoner decision ---
-    if data in ["cooperate", "defect"] and game["state"] == "decision":
+    if data in ["cooperate", "defect"]:
+        game_fsm = get_game_session(game_id)
+        
+        if game_fsm.state != "decision":
+            await bot.send_message(user_id, "You can't decide yet.")
+            return
+        
         game["choices"][user_id] = data
         await bot.send_message(user_id, f"You chose: {data}")
         if len(game["choices"]) == 2:
@@ -599,7 +645,12 @@ async def handle_callback(callback):
         return
 
     # --- Chicken decision ---
-    if data in ["war_yield", "war_straight"] and game["state"] == "war_decision":
+    if data in ["war_yield", "war_straight"]:
+        game_fsm = get_game_session(game_id)
+        if game_fsm.state != "war_decision":
+            await bot.send_message(user_id, "You can't choose war move now.")
+            return
+
         move = "yield" if data == "war_yield" else "straight"
         game["war_choices"][user_id] = move
         await bot.send_message(user_id, f"You chose: {move}")
