@@ -10,7 +10,7 @@ import os
 from dotenv import load_dotenv
 import asyncio
 from marketfactory import MarketFactory
-from game_loop import get_game_session, remove_game_session
+from gameloop import get_game_session, remove_game_session
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")

@@ -1,4 +1,4 @@
-from transitions import Machine
+from transitions.extensions.asyncio import AsyncMachine
 
 class GameLoop:
     states = [
@@ -12,7 +12,12 @@ class GameLoop:
 
     def __init__(self, game_id):
         self.game_id = game_id
-        self.machine = Machine(model=self, states=GameFSM.states, initial='idle')
+        self.machine = AsyncMachine(
+            model=self, 
+            states=GameLoop.states, 
+            initial=initial_state,
+            after_state_change=self.sync_db 
+        )
 
         # جریان جدید:
         # ۱. شروع پروسه ورود
@@ -27,6 +32,24 @@ class GameLoop:
         self.machine.add_transition('start_war', 'waiting_strategy', 'war_decision')
         self.machine.add_transition('finish', ['decision', 'war_decision'], 'idle')
 
+    async def save_metadata(self, key: str, value: dict):
+        """ذخیره انتخاب‌ها یا داده‌های بازی در دیتابیس"""
+        meta = MetaData(
+            parent_type=MetaParentType.round_session,
+            parent_id=self.session_id,
+            key=key,
+            value=value
+        )
+        await meta.insert()
+
+    async def get_metadata(self, key: str):
+        """خواندن داده‌ها از دیتابیس"""
+        meta = await MetaData.find_one(
+            MetaData.parent_id == self.session_id,
+            MetaData.key == key
+        )
+        return meta.value if meta else None
+        
     async def sync_db(self):
         """ذخیره وضعیت فعلی FSM در دیتابیس بیانی"""
         session = await RoundSession.get(self.session_id)
