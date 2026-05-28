@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional,Any
 import uuid
 
 from beanie import Document, Indexed, Link
@@ -145,13 +145,15 @@ class RoundSession(BaseDoc):
     started_at: datetime = Field(default_factory=_now)
     ended_at: Optional[datetime] = None
     status: StatusEnum
+    market_id: str
     round: Optional[Link[Round]] = None
+    game_data: Dict[str, Any] = Field(default_factory=dict)
     fsm_state: str = "idle"
 
     class Settings:
         name = "round_sessions"
 
-
+RoundSession.model_rebuild()
 class MetaData(BaseDoc):
     parent_type: MetaParentType
     parent_id: str

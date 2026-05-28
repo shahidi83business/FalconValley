@@ -35,19 +35,20 @@ class TelegramBotAPI:
         async with self.session.get(url, params=params) as r:
             return await r.json()
 
-    async def send_message(self, chat_id, text,keyboard=None):
-
-        if self.session is None:
-            raise RuntimeError("Session is not started. Call await bot.start() first.")
-
-        url = f"{self.base_url}/sendMessage"
-
+    async def send_message(self, chat_id, text, keyboard=None, reply_markup=None):
+        """
+        ارسال پیام با پشتیبانی از هر دو نام پارامتر keyboard و reply_markup
+        """
+        # اگر از reply_markup استفاده شده بود، آن را در keyboard قرار بده
+        final_keyboard = reply_markup if reply_markup else keyboard
+        
         payload = {
             "chat_id": chat_id,
-          "text": text
+            "text": text,
+            "parse_mode": "HTML"
         }
-        if keyboard is not None:
-            payload["reply_markup"] = keyboard
-            
-        async with self.session.post(url, json=payload) as r:
-            return await r.json()
+        if final_keyboard:
+            payload["reply_markup"] = final_keyboard
+
+        async with self.session.post(f"{self.base_url}/sendMessage", json=payload) as resp:
+            return await resp.json()

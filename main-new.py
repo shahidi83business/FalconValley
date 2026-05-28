@@ -46,13 +46,14 @@ async def handle_strategy_logic(game, user_id, strategy):
                                      reply_markup=UI.get_chicken_buttons())
         else:
             # حالت Advantage (یکی جنگ، یکی مذاکره)
-            results = GameEngine.calculate_war_advantage(game)
+            results = GameEngine.calculate_war_advantage_results(game)
             await finalize_game(game, results)
 
 async def negotiation_timeout(game):
     """تایمر پایان مذاکره"""
-    await asyncio.sleep(120)
-    if game.game_id in game_manager.games and game.state == "negotiation":
+    await asyncio.sleep(0)
+    print(game.state)
+    if game.game_id in game_manager.games and game.state == "waiting_negotiation":
         await game.start_decision()
         for p in game.players:
             await bot.send_message(p["id"], "⌛ Time's up! Make your final decision:", 
@@ -91,15 +92,15 @@ async def handle_callback(callback):
     game = game_manager.get_game(user_id)
     if not game: return
 
-    # ۳. هندلینگ دکمه‌های بازی بر اساس وضعیت FSM
-    if data.startswith("strat_") and game.state == "waiting_strategy":
-        await handle_strategy_logic(game, user_id, data.replace("strat_", ""))
+    print(game.state)
+    if data.startswith("strategy_") and game.state == "waiting_strategy":
+        await handle_strategy_logic(game, user_id, data.replace("strategy_", ""))
 
     elif data.startswith("choice_") and game.state == "decision":
         game.choices[user_id] = data.replace("choice_", "")
         if len(game.choices) == 2:
             payoffs = market_factory.get(game.market_id).payoff
-            results = GameEngine.calculate_standard_results(game, payoffs)
+            results = GameEngine.calculate_game_results(game, payoffs)
             await finalize_game(game, results)
 
     elif data.startswith("war_") and game.state == "war_decision":
@@ -114,16 +115,27 @@ async def handle_text(msg):
 
     # اگر در حال چت در فاز مذاکره است
     game = game_manager.get_game(user_id)
-    if game and game.state == "negotiation":
+    if game and game.state == "waiting_negotiation":
         opponent_id = [p["id"] for p in game.players if p["id"] != user_id][0]
         await bot.send_message(opponent_id, f"💬 {msg['from']['first_name']}: {text}")
         return
 
-    # دستورات پایه
+    # دستورات پای                
+    if text == "/start":
+        await bot.send_message(user_id, "Use /play to start.")
+
     if text == "/play":
         profile = await UserProfile.find_one(UserProfile.telegram_id == user_id)
         # فرض بر این است که متد زیر در UI مارکت‌ها را می‌سازد
-        await bot.send_message(user_id, "Select Market:", reply_markup=UI.get_market_selection([], ["energy", "tech", "agro"]))
+        await bot.send_message(
+            user_id,
+            "Select Market:",
+            keyboard=UI.get_market_selection(
+                unlocked_markets=[],
+                include_generate=False,
+                market_unlocks={}
+            )
+        )
     elif text == "/profile":
         # نمایش پروفایل با دکمه‌های UI
         await bot.send_message(user_id, "Your Profile:", reply_markup=UI.get_profile_menu())
@@ -135,18 +147,25 @@ async def handle_text(msg):
 async def main():
     await connect_to_database()
     await market_factory.load_from_db()
+
+    await bot.start()  # ✅ اضافه شود: قبل از اولین get_updates
     print("🤖 Bot is running...")
-    
+
     offset = None
-    while True:
-        updates = await bot.get_updates(offset)
-        for update in updates.get("result", []):
-            offset = update["update_id"] + 1
-            if "message" in update:
-                await handle_text(update["message"])
-            elif "callback_query" in update:
-                await handle_callback(update["callback_query"])
-        await asyncio.sleep(0.5)
+    try:
+        while True:
+            updates = await bot.get_updates(offset)
+            for update in updates.get("result", []):
+                offset = update["update_id"] + 1
+                if "message" in update:
+                    await handle_text(update["message"])
+                elif "callback_query" in update:
+                    await handle_callback(update["callback_query"])
+            await asyncio.sleep(0.5)
+    finally:
+        # ✅ برای خروج تمیز (Ctrl+C یا خطا)
+        await bot.close()
+
 
 if __name__ == "__main__":
     asyncio.run(main())
