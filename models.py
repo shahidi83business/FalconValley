@@ -110,12 +110,31 @@ class Opponent(BaseDoc):
 
 
 class Scenario(BaseDoc):
+    scenario_key: Indexed(str, unique=True)
     text: str
     options: List[str] = Field(default_factory=list)
     correct_option: Optional[int] = None
 
+    topic: Optional[str] = None
+    difficulty: str = "easy"
+    xp: int = 10
+    explanation: Optional[str] = None
+
+    market_tags: List[str] = Field(default_factory=list)
+    active: bool = True
+    source: str = "generated"
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
     class Settings:
         name = "scenarios"
+        indexes = [
+            "scenario_key",
+            "topic",
+            "difficulty",
+            "active",
+            [("market_tags", 1)],
+        ]
+
 
 
 class Round(BaseDoc):
@@ -133,6 +152,12 @@ class Decision(BaseDoc):
     scenario: Optional[Link[Scenario]] = None
     selected_option: int
     round: Optional[Link[Round]] = None
+
+    round_session: Optional[Link[RoundSession]] = None
+    is_correct: Optional[bool] = None
+    earned_xp: int = 0
+    explanation_snapshot: Optional[str] = None
+
     timestamp: datetime = Field(default_factory=_now)
 
     class Settings:
@@ -166,11 +191,24 @@ class MetaData(BaseDoc):
 
 class EconomyState(BaseDoc):
     session: Link[RoundSession]
-    round_number: int = Field(ge=0)
-    market_id: str  
+    round_number: int = Field(default=0, ge=0)
+    market_id: str
+    trust: float = 50.0
+    resource_health: float = 50.0
+    market_heat: float = 50.0
+    regulatory_heat: float = 0.0
+    resilience: float = 50.0
+
+    # Optional future variables
+    volatility: float = 0.0
+
+    # برای snapshot/debug/آینده
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
     class Settings:
         name = "economy_states"
         indexes = [
             [("session", 1), ("round_number", 1)],
+            [("market_id", 1)],
             [("created_at", -1)],
         ]

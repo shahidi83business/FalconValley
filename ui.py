@@ -97,3 +97,13 @@ class UI:
                 ]
             ]
         }
+
+    @staticmethod
+    def get_question_buttons(scenario_id: str, options: list[str], prefix: str = "quiz"):
+        keyboard = []
+        for i, opt in enumerate(options):
+            keyboard.append([{
+                "text": opt,
+                "callback_data": f"{prefix}_ans:{scenario_id}:{i}"
+            }])
+        return {"inline_keyboard": keyboard}

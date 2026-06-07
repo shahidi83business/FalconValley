@@ -15,6 +15,10 @@ class GameLoop:
         self.war_penalty = {p["id"]: 0 for p in players_info}
         self.market_id = session.market_id
 
+        initial_budget = 1000 
+        self.budgets = {p["id"]: initial_budget for p in players_info}
+        self.investments = {} 
+
         states = [
             'idle',
             'waiting_strategy',

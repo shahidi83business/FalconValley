@@ -1,758 +1,488 @@
 #main.py
-import requests
-import time
-import random
-import threading
+import asyncio
+import os
+import logging
+from dotenv import load_dotenv
+
+# Helpers & Models
 from db_helper import connect_to_database
 from telegramapi import TelegramBotAPI
-from models import User,UserProfile
-import os
-from dotenv import load_dotenv
-import asyncio
+from models import UserProfile,Scenario, Decision
 from marketfactory import MarketFactory
-from gameloop import get_game_session, remove_game_session
+from manager import game_manager  # مدیریت مرکزی بازی‌ها
+from engine import GameEngine      # موتور محاسبات نتایج
+from ui import UI                  # کلاس رابط کاربری که ساختیم
+from questionfactory import QuestionFactory
+from judge_service import JudgeService
 
 load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-BASE_URL = os.getenv("BASE_URL")+BOT_TOKEN
-
-# -------------------------
-# Telegram Helper
-# -------------------------
-
-from telegramapi import TelegramBotAPI
-
-bot = TelegramBotAPI(BASE_URL)
-
-
-# -------------------------
-# Game Storage
-# -------------------------
+bot = TelegramBotAPI(os.getenv("BASE_URL") + os.getenv("BOT_TOKEN"))
 market_factory = MarketFactory()
-market_creation_state = {}
 
-MARKET_UNLOCKS = {
-    "energy_pro": {
-        "base": "energy",
-        "required_xp": 20,
-        "title": "⚡ Energy Pro Market"
-    },
-    "tech_pro": {
-        "base": "tech",
-        "required_xp": 30,
-        "title": "💻 Tech Pro Market"
-    },
-    "agro_elite": {
-        "base": "agro",
-        "required_xp": 40,
-        "title": "🌾 Agro Elite Market"
-    }
+question_factory = QuestionFactory()
+judge = JudgeService()
+
+user_context = {} 
+waiting_queue = {} 
+
+active_quiz_users = set()  # کاربرهایی که باید هر دقیقه سوال بگیرن
+
+# وضعیت سوال جاری هر کاربر (pending)
+quiz_state = {
+    # user_id: {"pending_scenario_id": "...", "mode": "solo"|"pvp", "game_id": "..."}
 }
 
-waiting_markets = {
-    "energy": None,
-    "tech": None,
-    "agro": None
-}
 
-games = {}
-player_game = {}
-profile_edit_state = {}
-
-WAR_PRESSURE_INTERVAL = 3
-WAR_PRESSURE_DAMAGE = 1
-
-war_pressure_tasks = {}
-
-
-async def war_pressure(game_id):
-
-    while True:
-
-        await asyncio.sleep(WAR_PRESSURE_INTERVAL)
-
-        if game_id not in games:
-            return
-
-        game = games[game_id]
-        game_fsm = get_game_session(game_id)
-
-        if game_fsm.state != "war_decision":
-            return
-
-        for p in game["players"]:
-            uid = p["id"]
-
-            if uid not in game["war_choices"]:
-                game["war_penalty"][uid] -= WAR_PRESSURE_DAMAGE
-
-                await bot.send_message(
-                    uid,
-                    f"⏳ Pressure! -{WAR_PRESSURE_DAMAGE} score"
-                )
-
-async def add_market_xp(user_id, market_id: str, amount: int = 1):
-    profile = await UserProfile.find_one(UserProfile.user_id == user_id)
-    if not profile:
-        return None
-
-    current = profile.market_experience.get(market_id, 0)
-    profile.market_experience[market_id] = current + amount
-    
-    await profile.save()
-    return profile.market_experience[market_id]
-
-async def start_chicken(game_id):
-    game = games[game_id]
-
-
-    if game_fsm.state != "waiting_strategy":
-        print(f"[WARN] Game {game_id} FSM state={game_fsm.state}, expected 'waiting_strategy' for start_chicken")
-
-    game_fsm.start_war()
-
-    game["chat_enabled"] = False
-
-    keyboard = {
-        "inline_keyboard": [
-            [
-                {"text": "🕊 Yield", "callback_data": "war_yield"},
-                {"text": "🚗 Straight", "callback_data": "war_straight"},
-            ]
-        ]
-    }
-
-    for p in game["players"]:
-        await bot.send_message(p["id"], "War mode: choose your move:", keyboard)
-    war_pressure_tasks[game_id] = asyncio.create_task(war_pressure(game_id))
-
-
-
-async def resolve_war_advantage(game_id):
-    game = games[game_id]
-    p1, p2 = game["players"]
-    s1 = game["strategy"].get(p1["id"])
-    s2 = game["strategy"].get(p2["id"])
-
-    # امتیازدهی ساده برای حالت «یکی جنگ یکی مذاکره»
-    if s1 == "war" and s2 == "negotiation":
-        r1, r2 = 3, -2
-    elif s1 == "negotiation" and s2 == "war":
-        r1, r2 = -2, 3
-    else:
-        r1, r2 = 0, 0  # نباید رخ دهد
-
-    result = f"""
-Market: {game['market'].upper()}
-Mode: WAR (Advantage)
-
-{p1['name']}: {s1}
-{p2['name']}: {s2}
-
-Scores:
-{p1['name']}: {r1}
-{p2['name']}: {r2}
-"""
-    for p in game["players"]:
-        await bot.send_message(p["id"], result)
-
-    del player_game[p1["id"]]
-    del player_game[p2["id"]]
-    del games[game_id]
-
-
-async def resolve_chicken(game_id):
-    game = games[game_id]
-    p1, p2 = game["players"]
-    c1 = game["war_choices"][p1["id"]]   # "yield" | "straight"
-    c2 = game["war_choices"][p2["id"]]
-
-    # ماتریس متعادل پیشنهادی
-    if c1 == "yield" and c2 == "yield":
-        r1, r2 = 0, 0
-    elif c1 == "yield" and c2 == "straight":
-        r1, r2 = -1, 2
-    elif c1 == "straight" and c2 == "yield":
-        r1, r2 = 2, -1
-    else:
-        r1, r2 = -5, -5
-
-    result = f"""
-Market: {game['market'].upper()}
-Mode: CHICKEN (War)
-
-{p1['name']}: {c1}
-{p2['name']}: {c2}
-
-Scores:
-{p1['name']}: {r1}
-{p2['name']}: {r2}
-"""
-    r1 += game["war_penalty"][p1["id"]]
-    r2 += game["war_penalty"][p2["id"]]
-
-    for p in game["players"]:
-        await bot.send_message(p["id"], result)
-
-    game_fsm = get_game_session(game_id)
-    game_fsm.finish()           
-    remove_game_session(game_id)
-
-    del player_game[p1["id"]]
-    del player_game[p2["id"]]
-    del games[game_id]
-
-async def create_game(p1, p2, market):
-
-    game_id = random.randint(1000, 9999)
-
-    game_fsm = get_game_session(game_id)
-    game_fsm.start_game()
-    await game_fsm.sync_db() 
-    
-    games[game_id] = {
-        "players": [p1, p2],
-        "choices": {},
-        "state": "waiting_strategy",
-        "chat_enabled": False,
-        "market": market,
-        "strategy": {},          # user_id -> "negotiation" | "war"
-        "mode": None,            # "prisoner" | "chicken" | "war_advantage"
-        "war_choices": {},        # user_id -> "yield" | "straight"
-        "war_penalty": {p1["id"]: 0, p2["id"]: 0}
-    }
-
-    player_game[p1["id"]] = game_id
-    player_game[p2["id"]] = game_id
-
-    keyboard = {
-        "inline_keyboard": [
-            [
-                {"text": "🤝 Negotiation", "callback_data": "strategy_negotiation"},
-                {"text": "⚔️ War", "callback_data": "strategy_war"},
-            ]
-        ]
-    }
-
-    await bot.send_message(p1["id"], f"Matched in {market.upper()} market!\nChoose your approach:", keyboard)
-    await bot.send_message(p2["id"], f"Matched in {market.upper()} market!\nChoose your approach:", keyboard)
-
+def clear_user_quiz_pending(user_id):
+    """
+    وقتی کاربر وارد بازی می‌شود، سؤال solo باز او را پاک می‌کنیم
+    تا بعداً به سؤال قدیمی جواب ندهد.
+    """
+    st = quiz_state.setdefault(
+        user_id,
+        {
+            "pending_scenario_id": None,
+            "mode": "solo",
+            "market_id": "global"
+        }
+    )
+    st["pending_scenario_id"] = None
 
 # -------------------------
-# Scenario Phase
+# Core Game Logic
 # -------------------------
-async def negotiation_timer(game_id):
+
+async def handle_strategy_logic(game, user_id, strategy):
+    """مدیریت انتخاب استراتژی و هدایت به فاز بعدی"""
+
+    if user_id in game.strategy:
+        await bot.send_message(user_id, "قبلاً استراتژی‌ات را انتخاب کردی.")
+        return
+
+    game.strategy[user_id] = strategy
+
+    await bot.send_message(
+        user_id,
+        f"✅ Strategy {strategy.upper()} locked. منتظر انتخاب حریف..."
+    )
+
+    if len(game.strategy) < 2:
+        return
+
+    s1, s2 = list(game.strategy.values())
+
+    if s1 == "negotiation" and s2 == "negotiation":
+        await game.start_negotiation()
+
+        for p in game.players:
+            await bot.send_message(
+                p["id"],
+                "🤝 هر دو مذاکره را انتخاب کردید. ۲ دقیقه فرصت چت دارید!",
+                reply_markup=None
+            )
+
+        asyncio.create_task(negotiation_timeout(game))
+
+    elif s1 == "war" and s2 == "war":
+        await game.start_chicken()
+
+        for p in game.players:
+            await bot.send_message(
+                p["id"],
+                "⚠️ هر دو جنگ را انتخاب کردید! وارد Chicken Game شدید.",
+                reply_markup=UI.get_chicken_buttons()
+            )
+
+    else:
+        results = GameEngine.calculate_war_advantage_results(game)
+        await finalize_game(game, results)
+
+async def negotiation_timeout(game):
+    """تایمر پایان مذاکره"""
     await asyncio.sleep(120)
-    if game_id in games:
-        await start_decision(game_id)
-
-
-async def deduct_entry_fee(user_id, market_id):
-    bp = market_factory.get(market_id)
-    fee = bp.entry_fee if bp else 10 # هزینه پیش‌فرض اگر پیدا نشد
-
-    profile = await UserProfile.find_one(UserProfile.telegram_id == user_id)
-    if profile.balance >= fee:
-        profile.balance -= fee
-        await profile.save()
-        return True
-    return False
-
-async def start_negotiation(game_id):
-
-    game = games[game_id]
-    game_fsm = get_game_session(game_id)
-
-
-    if game_fsm.state != "waiting_strategy":
-        print(f"[WARN] Game {game_id} FSM state={game_fsm.state}, expected 'waiting_strategy' for start_negotiation")
-    game_fsm.start_negotiation()  # FSM: waiting_strategy -> negotiation
-
-    game["chat_enabled"] = True
-
-    scenario_text = """
-You and your partner were arrested.
-
-You can talk for 2 minutes.
-Convince each other before deciding.
-"""
-
-    for p in game["players"]:
-      await bot.send_message(p["id"], scenario_text)
-
-    # timer 2 دقیقه
-    asyncio.create_task(negotiation_timer(game_id))
-
-
-
-async def start_decision(game_id):
-
-    if game_id not in games:
-        return
-
-    game = games[game_id]
-
-    game_fsm = get_game_session(game_id)
-    
-    if game_fsm.state not in ["waiting_strategy", "negotiation"]:
-        print(f"[WARN] Game {game_id} FSM state={game_fsm.state}, expected 'waiting_strategy' or 'negotiation' for start_decision")
-    
-    game_fsm.start_decision()  
-
-    game["chat_enabled"] = False
-
-    keyboard = {
-        "inline_keyboard": [
-            [
-                {"text": "Cooperate", "callback_data": "cooperate"},
-                {"text": "defect", "callback_data": "defect"}
-            ]
-        ]
-    }
-
-    for p in game["players"]:
-      await bot.send_message(p["id"], "Time's up. Make your decision:", keyboard)
-
-
-# -------------------------
-# Resolve
-# -------------------------
-
-async def resolve_game(game_id):
-
-    game = games[game_id]
-    market = game["market"]
-
-    p1, p2 = game["players"]
-    c1 = game["choices"][p1["id"]]
-    c2 = game["choices"][p2["id"]]
-
-    # -------- MARKET PAYOFFS --------
-
-    bp = market_factory.get(market)
-    payoffs = bp.payoff
-    coop, betray, both = payoffs["coop"], payoffs["betray"], payoffs["both"]
-    # -------- PAYOFF LOGIC --------
-
-    if c1 == "cooperate" and c2 == "cooperate":
-        r1, r2 = coop, coop
-    elif c1 == "cooperate" and c2 == "defect":
-        r1, r2 = 0, betray
-    elif c1 == "defect" and c2 == "cooperate":
-        r1, r2 = betray, 0
-    else:
-        r1, r2 = both, both
-
-    result = f"""
-Market: {market.upper()}
-
-Results
-
-{p1['name']}: {c1}
-{p2['name']}: {c2}
-
-Scores:
-{p1['name']}: {r1}
-{p2['name']}: {r2}
-"""
-
-    for p in game["players"]:
-        await bot.send_message(p["id"], result)
-        await add_market_xp(p["id"], market, 2)
-
-        new_markets = await check_market_unlocks(p["id"])
-
-        if new_markets:
-            msg = "🎉 New Markets Unlocked:\n" + "\n".join("• " + m for m in new_markets)
-            await bot.send_message(p["id"], msg)
-
-    game_fsm = get_game_session(game_id)
-    game_fsm.finish()           
-    remove_game_session(game_id)
-
-    del player_game[p1["id"]]
-    del player_game[p2["id"]]
-    del games[game_id]
-
-
-# -------------------------
-# Command Handling
-# -------------------------
-
-
-async def check_market_unlocks(user_id: int):
-    profile = await UserProfile.find_one(UserProfile.user_id == user_id)
-    if not profile:
-        return []
-
-    unlocked_now = []
-
-    for market_key, info in MARKET_UNLOCKS.items():
-        base = info["base"]
-        req = info["required_xp"]
-
-        # اگر از قبل باز شده بود → رد شود
-        if market_key in profile.unlocked_markets:
-            continue
-
-        # XP کاربر در مارکت پایه
-        xp = profile.market_experience.get(base, 0)
-
-        # اگر به حد لازم رسیده:
-        if xp >= req:
-            profile.unlocked_markets.append(market_key)
-            unlocked_now.append(info["title"])
-
-    await profile.save()
-    return unlocked_now
-
-async def handle_play(user):
-
-    if user["id"] in player_game:
-        await bot.send_message(user["id"], "Already in game.")
-        return
-
-    profile = await UserProfile.find_one(UserProfile.id == user["id"])
-
-    base_buttons = [
-        {"text": "⚡ Energy Market", "callback_data": "market_energy"},
-        {"text": "💻 Tech Market", "callback_data": "market_tech"},
-        {"text": "🌾 Agro Market", "callback_data": "market_agro"},
-    ]
-
-    extra_buttons = []
-    if profile:
-        for m in profile.unlocked_markets:
-            title = MARKET_UNLOCKS[m]["title"]
-            extra_buttons.append({"text": title, "callback_data": f"market_{m}"})
-
-    keyboard = {
-        "inline_keyboard": [[btn] for btn in base_buttons + extra_buttons]
-    }
-
-    can_create = False
-    if profile:
-        for base in ["energy", "tech", "agro"]:
-            if profile.market_experience.get(base, 0) >= 20:
-                can_create = True
-                break
-
-    if can_create:
-        keyboard["inline_keyboard"].append([
-            {"text": "🧠 Generate New Market (AI)", "callback_data": "market_gen_start"}
-        ])
-
-    await bot.send_message(user["id"], "Choose a market:", keyboard)
-
-
-async def handle_text_message(msg):
-
-    user_id = msg["from"]["id"]
-    user_name = msg["from"]["first_name"]
-    text = msg.get("text", "")
-
-    # --- profile edit mode ---
-    if user_id in profile_edit_state:
-        field = profile_edit_state[user_id]
-        user = await get_or_create_user(user_id, user_name)
-
-        if field == "edit_first_name":
-            user.first_name = text
-        elif field == "edit_last_name":
-            user.last_name = text
-        elif field == "edit_bio":
-            user.bio = text
-
-        await user.save()
-        del profile_edit_state[user_id]
-
-        await bot.send_message(user_id, "Profile updated successfully.")
-        await handle_profile(user_id)
-        return
-
-    if user_id in market_creation_state:
-        st = market_creation_state[user_id]
-        summary = text.strip()
-
-        await bot.send_message(user_id, "Designing your market with AI...")
-
-        bp = await market_factory.generate_market(
-            base_market=st["base_market"],
-            xp_required=st["xp_required"],
-            player_profile_summary=summary,
+    print(game.state)
+    if game.game_id in game_manager.games and game.state == "waiting_negotiation":
+        await game.start_decision()
+        for p in game.players:
+            await bot.send_message(p["id"], "⌛ Time's up! Make your final decision:", 
+                                 reply_markup=UI.get_negotiation_buttons())
+
+async def finalize_game(game, results):
+    text = GameEngine.generate_result_text(game, results)
+
+    for p in game.players:
+        user_id = p["id"]
+
+        await bot.send_message(user_id, text)
+
+        st = quiz_state.setdefault(
+            user_id,
+            {
+                "pending_scenario_id": None,
+                "mode": "solo",
+                "market_id": game.market_id
+            }
         )
 
-        profile = await UserProfile.find_one(UserProfile.id == user_id)
-        if profile and bp.id not in profile.unlocked_markets:
-            profile.unlocked_markets.append(bp.id)
-            await profile.save()
+        st["mode"] = "solo"
+        st["pending_scenario_id"] = None
+        st["market_id"] = game.market_id
 
-        del market_creation_state[user_id]
+    await game_manager.end_game(game.game_id)
 
-        await bot.send_message(user_id, f"✅ New market created: {bp.display_name}\nID: {bp.id}")
-        # مستقیم منوی play رو دوباره نشون بده
-        await handle_play({"id": user_id, "name": user_name})
+async def send_quiz_question(user_id, market_id="global", topic="general", difficulty="easy"):
+    """
+    ارسال یک سؤال solo به کاربر.
+    اگر کاربر داخل بازی باشد یا سؤال pending داشته باشد، سؤال جدید نمی‌فرستد.
+    """
+
+    # اگر داخل بازی دو نفره است، سؤال solo نفرست
+    if game_manager.get_game(user_id):
         return
 
-    # --- game chat mode ---
-    if user_id not in player_game:
+    st = quiz_state.setdefault(
+        user_id,
+        {
+            "pending_scenario_id": None,
+            "mode": "solo",
+            "market_id": market_id
+        }
+    )
+
+    # اگر هنوز به سؤال قبلی جواب نداده، سؤال جدید نفرست
+    if st.get("pending_scenario_id"):
         return
 
-    game_id = player_game[user_id]
-    game = games[game_id]
+    st["market_id"] = market_id
+    st["mode"] = "solo"
 
-    if game["chat_enabled"]:
-        for p in game["players"]:
-            if p["id"] != user_id:
-                await bot.send_message(p["id"], f"{user_name}: {text}")
+    q = await question_factory.generate_question(
+        market_id=market_id,
+        topic=topic,
+        difficulty=difficulty,
+        xp=10,
+    )
 
-async def start_profile_edit(user_id, field):
-    profile_edit_state[user_id] = field
+    scenario = await Scenario.find_one(Scenario.scenario_key == q.id)
 
-    prompts = {
-        "edit_first_name": "Send your new first name:",
-        "edit_last_name": "Send your new last name:",
-        "edit_bio": "Send your new bio:"
+    if not scenario:
+        await bot.send_message(user_id, "متأسفانه نتونستم سؤال بسازم. دوباره تلاش کن.")
+        return
+
+    quiz_state[user_id] = {
+        "pending_scenario_id": str(scenario.id),
+        "mode": "solo",
+        "market_id": market_id
     }
 
-    await bot.send_message(user_id, prompts[field])
-
-async def get_or_create_user(user_id, default_first_name=None):
-
-    user = await UserProfile.find_one(UserProfile.id == user_id)
-
-    if not user:
-        user = UserProfile(
-            telegram_id=user_id,
-            first_name=default_first_name or "",
-            last_name="",
-            bio="",
-            wins=0,
-            games=0,
-            loses=0,
-            score=0
+    await bot.send_message(
+        user_id,
+        f"🧠 سؤال جدید:\n\n{scenario.text}",
+        reply_markup=UI.get_question_buttons(
+            str(scenario.id),
+            scenario.options,
+            prefix="quiz"
         )
+    )
 
-        await user.insert()
-
-    return user
-
+# -------------------------
+# Event Handlers
+# -------------------------
 
 async def handle_callback(callback):
     user_id = callback["from"]["id"]
     data = callback["data"]
+    user_name = callback["from"]["first_name"]
 
-    if data == "market_gen_start":
-        keyboard = {
-            "inline_keyboard": [
-                [{"text": "⚡ Based on Energy", "callback_data": "market_gen_base_energy"}],
-                [{"text": "💻 Based on Tech", "callback_data": "market_gen_base_tech"}],
-                [{"text": "🌾 Based on Agro", "callback_data": "market_gen_base_agro"}],
-            ]
-        }
-        await bot.send_message(user_id, "Choose a base market:", keyboard)
-        return
+    # -------------------------
+    # 1. پاسخ به سؤال Solo Quiz
+    # -------------------------
+    if data.startswith("quiz_ans:"):
+        _, rest = data.split("quiz_ans:", 1)
+        scenario_id, opt_str = rest.split(":")
+        selected = int(opt_str)
 
-    if data.startswith("market_gen_base_"):
-        base = data.split("market_gen_base_", 1)[1]
+        st = quiz_state.get(user_id, {})
 
-        profile = await UserProfile.find_one(UserProfile.id == user_id)
-        if not profile:
-            await bot.send_message(user_id, "Profile not found.")
+        if st.get("pending_scenario_id") != scenario_id:
+            await bot.send_message(user_id, "این سؤال منقضی شده یا سؤال جدیدتری داری.")
             return
 
-        xp = profile.market_experience.get(base, 0)
-        if xp < 20:
-            await bot.send_message(user_id, f"You need at least 20 XP in {base} to generate a new market.")
+        scenario = await Scenario.get(scenario_id)
+
+        if not scenario:
+            await bot.send_message(user_id, "سؤال پیدا نشد.")
+            quiz_state[user_id]["pending_scenario_id"] = None
             return
 
-        # xp_required برای مارکت جدید: مثلاً xp فعلی + 10 (یا ثابت/پلکانی)
-        xp_required = xp + 10
+        result = judge.judge(scenario, selected)
 
-        market_creation_state[user_id] = {"base_market": base, "xp_required": xp_required}
-        await bot.send_message(user_id, "Send one sentence about your playstyle (AI will design the market name & rules):")
+        # ثبت Decision اگر مدلش را کامل داری
+        # await Decision(...).insert()
+
+        profile = await UserProfile.find_one(UserProfile.telegram_id == user_id)
+
+        if profile and result.earned_xp:
+            profile.score += result.earned_xp
+            await profile.save()
+
+        quiz_state[user_id]["pending_scenario_id"] = None
+
+        msg = "✅ درست!" if result.is_correct else "❌ غلط!"
+        exp = f"\n\nتوضیح: {result.explanation}" if result.explanation else ""
+
+        await bot.send_message(
+            user_id,
+            f"{msg} (+{result.earned_xp} XP){exp}"
+        )
         return
-    # --- Market Selection ---
+
+    # -------------------------
+    # 2. انتخاب Market و Matchmaking
+    # -------------------------
     if data.startswith("market_"):
-        market = data.split("market_", 1)[1]
+        m_id = data.replace("market_", "")
 
-        # ایجاد داینامیک در waiting_markets اگر وجود نداشت
-        if market not in waiting_markets:
-            waiting_markets[market] = None
+        # market آخر کاربر را ذخیره کن تا سؤال‌های solo بعدی مرتبط‌تر باشند
+        st = quiz_state.setdefault(
+            user_id,
+            {
+                "pending_scenario_id": None,
+                "mode": "solo",
+                "market_id": m_id
+            }
+        )
+        st["market_id"] = m_id
 
-        if waiting_markets[market] is None:
-            waiting_markets[market] = callback["from"]
-            await bot.send_message(user_id, f"Waiting for opponent in market: {market}...")
-        else:
-            opponent = waiting_markets[market]
-            waiting_markets[market] = None
+        # اگر کسی منتظر این market نیست
+        if waiting_queue.get(m_id) is None:
+            waiting_queue[m_id] = {
+                "id": user_id,
+                "name": user_name
+            }
 
-            p1 = {"id": opponent["id"], "name": opponent["first_name"]}
-            p2 = {"id": callback["from"]["id"], "name": callback["from"]["first_name"]}
-
-            await create_game(p1, p2, market)
-        return
-
-    # --- Profile edit allowed even outside game ---
-    if data in ["edit_first_name", "edit_last_name", "edit_bio"] and user_id not in player_game:
-        await start_profile_edit(user_id, data)
-        return
-
-    # از اینجا به بعد باید داخل بازی باشد
-    if user_id not in player_game:
-        return
-
-    game_id = player_game[user_id]
-    game = games[game_id]
-
-    # --- Strategy selection (NEW) ---
-    if data.startswith("strategy_"):
-        game_fsm = get_game_session(game_id)
-
-        if not (game_fsm.state == "waiting_strategy"):
-            await bot.send_message(user_id, "It's not time to choose strategy.")
+            await bot.send_message(
+                user_id,
+                f"🔍 Searching for opponent in {m_id}..."
+            )
             return
 
-        strategy = data.split("_", 1)[1]  
-        game["strategy"][user_id] = strategy
-        await bot.send_message(user_id, f"You chose: {strategy}")
+        # اگر یک نفر منتظر است، match بساز
+        opponent = waiting_queue.pop(m_id)
 
-        if len(game["strategy"]) == 2:
-            s_values = set(game["strategy"].values())
-            if s_values == {"negotiation"}:
-                game["mode"] = "prisoner"
-                await start_negotiation(game_id)
-            elif s_values == {"war"}:
-                game["mode"] = "chicken"
-                await start_chicken(game_id)
-            else:
-                game["mode"] = "war_advantage"
-                await resolve_war_advantage(game_id)
-        return
-
-    # --- Prisoner decision ---
-    if data in ["cooperate", "defect"]:
-        game_fsm = get_game_session(game_id)
-        
-        if game_fsm.state != "decision":
-            await bot.send_message(user_id, "You can't decide yet.")
-            return
-        
-        game["choices"][user_id] = data
-        await bot.send_message(user_id, f"You chose: {data}")
-        if len(game["choices"]) == 2:
-            await resolve_game(game_id)
-        return
-
-    # --- Chicken decision ---
-    if data in ["war_yield", "war_straight"]:
-        game_fsm = get_game_session(game_id)
-        if game_fsm.state != "war_decision":
-            await bot.send_message(user_id, "You can't choose war move now.")
+        # اگر کاربر با خودش match نشود
+        if opponent["id"] == user_id:
+            waiting_queue[m_id] = opponent
+            await bot.send_message(user_id, "هنوز منتظر حریف هستی...")
             return
 
-        move = "yield" if data == "war_yield" else "straight"
-        game["war_choices"][user_id] = move
-        await bot.send_message(user_id, f"You chose: {move}")
-        if len(game["war_choices"]) == 2:
-            task = war_pressure_tasks.get(game_id)
-            if task:
-                task.cancel()
-            await resolve_chicken(game_id)
+        game = await game_manager.create_game(
+            opponent,
+            {
+                "id": user_id,
+                "name": user_name
+            },
+            m_id
+        )
+
+        # سؤال‌های solo باز را پاک کن
+        clear_user_quiz_pending(opponent["id"])
+        clear_user_quiz_pending(user_id)
+
+        # mode را برای خوانایی عوض کن، هرچند get_game خودش کافی است
+        quiz_state[opponent["id"]]["mode"] = "in_game"
+        quiz_state[user_id]["mode"] = "in_game"
+
+        for p in game.players:
+            await bot.send_message(
+                p["id"],
+                "🎮 Match Found!\n\nاستراتژی اولیه‌ات را انتخاب کن:",
+                reply_markup=UI.get_strategy_buttons()
+            )
+
         return
 
-    # --- Profile edit inside game too ---
-    if data in ["edit_first_name", "edit_last_name", "edit_bio"]:
-        await start_profile_edit(user_id, data)
+    # -------------------------
+    # 3. پیدا کردن بازی کاربر
+    # -------------------------
+    game = game_manager.get_game(user_id)
+
+    if not game:
+        await bot.send_message(user_id, "بازی فعالی نداری.")
         return
 
+    print(game.state)
 
+    # -------------------------
+    # 4. انتخاب Strategy اولیه
+    # -------------------------
+    if data.startswith("strategy_") and game.state == "waiting_strategy":
+        strategy = data.replace("strategy_", "")
+        await handle_strategy_logic(game, user_id, strategy)
+        return
 
-async def handle_profile(user_id):
-    user = await get_or_create_user(user_id)
+    # -------------------------
+    # 5. تصمیم نهایی بعد از مذاکره
+    # -------------------------
+    if data.startswith("choice_") and game.state == "decision":
+        if user_id in game.choices:
+            await bot.send_message(user_id, "قبلاً انتخابت را ثبت کردی.")
+            return
 
-    text = f"""Your profile:
+        game.choices[user_id] = data.replace("choice_", "")
 
-First name: {user.first_name}
-Last name: {user.last_name}
-Bio: {user.bio}
+        await bot.send_message(user_id, "✅ انتخاب نهایی ثبت شد. منتظر حریف...")
 
-Wins: {user.wins}
-Games: {user.games}
-Losses: {user.loses}
-Score: {user.score}
-"""
+        if len(game.choices) == 2:
+            payoffs = market_factory.get(game.market_id).payoff
+            results = GameEngine.calculate_game_results(game, payoffs)
+            await finalize_game(game, results)
 
-    keyboard = {
-        "inline_keyboard": [
-            [
-                {"text": "Edit First Name", "callback_data": "edit_first_name"},
-                {"text": "Edit Last Name", "callback_data": "edit_last_name"}
-            ],
-            [
-                {"text": "Edit Bio", "callback_data": "edit_bio"}
-            ]
-        ]
-    }
+        return
 
-    await bot.send_message(user_id, text, keyboard)
+    # -------------------------
+    # 6. انتخاب در Chicken Game
+    # -------------------------
+    if data.startswith("war_") and game.state == "war_decision":
+        if user_id in game.war_choices:
+            await bot.send_message(user_id, "قبلاً انتخابت را ثبت کردی.")
+            return
 
-# -------------------------
-# Polling Loop
-# -------------------------
+        game.war_choices[user_id] = data.replace("war_", "")
 
-async def polling():
+        await bot.send_message(user_id, "✅ انتخاب جنگی ثبت شد. منتظر حریف...")
 
-    offset = None
+        if len(game.war_choices) == 2:
+            results = GameEngine.calculate_chicken_results(game)
+            await finalize_game(game, results)
 
+        return
+
+    await bot.send_message(user_id, "این دکمه الان معتبر نیست.")
+
+async def handle_text(msg):
+    user_id = msg["from"]["id"]
+    text = msg.get("text", "")
+
+    # اگر در فاز مذاکره است، پیام را برای حریف بفرست
+    game = game_manager.get_game(user_id)
+
+    if game and game.state == "waiting_negotiation":
+        opponent_id = [p["id"] for p in game.players if p["id"] != user_id][0]
+
+        await bot.send_message(
+            opponent_id,
+            f"💬 {msg['from']['first_name']}: {text}"
+        )
+        return
+
+    if text == "/start":
+        await bot.send_message(
+            user_id,
+            "سلام! برای شروع /play را بزن."
+        )
+        return
+
+    if text == "/play":
+        profile = await UserProfile.find_one(UserProfile.telegram_id == user_id)
+
+        # اگر پروفایل نداری، بسته به مدل خودت اینجا بساز
+        # if not profile:
+        #     profile = UserProfile(telegram_id=user_id, score=0)
+        #     await profile.insert()
+
+        active_quiz_users.add(user_id)
+
+        quiz_state.setdefault(
+            user_id,
+            {
+                "pending_scenario_id": None,
+                "mode": "solo",
+                "market_id": "global"
+            }
+        )
+
+        await bot.send_message(
+            user_id,
+            "Select Market:",
+            keyboard=UI.get_market_selection(
+                unlocked_markets=[],
+                include_generate=False,
+                market_unlocks={}
+            )
+        )
+        return
+
+    if text == "/profile":
+        await bot.send_message(
+            user_id,
+            "Your Profile:",
+            reply_markup=UI.get_profile_menu()
+        )
+        return
+
+    await bot.send_message(user_id, "دستور نامعتبر است. از /play استفاده کن.")
+
+async def quiz_scheduler_loop():
     while True:
+        try:
+            for user_id in list(active_quiz_users):
 
-        updates = await bot.get_updates(offset)
+                # اگر کاربر داخل game است، سوال solo نفرست
+                game = game_manager.get_game(user_id)
+                if game:
+                    continue
 
-        for update in updates["result"]:
+                st = quiz_state.get(user_id, {})
 
-            offset = update["update_id"] + 1
+                # اگر هنوز سؤال pending دارد، سؤال جدید نفرست
+                if st.get("pending_scenario_id"):
+                    continue
 
-            if "message" in update:
+                market_id = st.get("market_id", "global")
+                topic = "general"
+                difficulty = "easy"
 
-                msg = update["message"]
-                text = msg.get("text", "")
+                await send_quiz_question(
+                    user_id=user_id,
+                    market_id=market_id,
+                    topic=topic,
+                    difficulty=difficulty
+                )
 
-                user = {
-                    "id": msg["from"]["id"],
-                    "name": msg["from"]["first_name"]
-                }
-
-                if text == "/start":
-                    await bot.send_message(user["id"], "Use /play to start.")
-
-                elif text == "/play":
-                    await handle_play(user)
-
-                elif text == "/profile":
-                    await handle_profile(user["id"])
-
-                else:
-                    await handle_text_message(msg)
-
-            elif "callback_query" in update:
-                await handle_callback(update["callback_query"])
+        except Exception as e:
+            logging.exception("quiz scheduler error: %s", e)
 
         await asyncio.sleep(1)
 
 
-async def main():
+# -------------------------
+# Main Entry
+# -------------------------
 
-    global session
+async def main():
     await connect_to_database()
     await market_factory.load_from_db()
-    await bot.start() 
 
-    print("Bot started")
+    await bot.start()  # ✅ اضافه شود: قبل از اولین get_updates
+    asyncio.create_task(quiz_scheduler_loop())  # ✅
+    print("🤖 Bot is running...")
 
-    await polling()
+    offset = None
+    try:
+        while True:
+            updates = await bot.get_updates(offset)
+            for update in updates.get("result", []):
+                offset = update["update_id"] + 1
+                if "message" in update:
+                    await handle_text(update["message"])
+                elif "callback_query" in update:
+                    await handle_callback(update["callback_query"])
+            await asyncio.sleep(0.5)
+    finally:
+        # ✅ برای خروج تمیز (Ctrl+C یا خطا)
+        await bot.close()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
-
