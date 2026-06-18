@@ -24,6 +24,15 @@ class StatusEnum(str, Enum):
     abandoned = "abandoned"
 
 
+class DealStatusEnum(str, Enum):
+    pending = "pending"
+    accepted = "accepted"
+    rejected = "rejected"
+    completed = "completed"
+    failed = "failed"
+    expired = "expired"
+
+
 class MetaParentType(str, Enum):
     round_session = "round_session"
     decision = "decision"
@@ -84,6 +93,10 @@ class UserProfile(BaseDoc):
     market_experience: dict[str, int] = {}
     unlocked_markets: list[str] = []
     balance: int = 0
+    trust_score: float = 50
+    reputation_score: float = 50
+
+    risk_profile: float = 50
     class Settings:
         name = "user_profiles"
 

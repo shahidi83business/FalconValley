@@ -185,18 +185,77 @@ async def send_quiz_question(user_id, market_id="global", topic="general", diffi
         )
     )
 
-# -------------------------
-# Event Handlers
-# -------------------------
-
 async def handle_callback(callback):
     user_id = callback["from"]["id"]
     data = callback["data"]
     user_name = callback["from"]["first_name"]
 
-    # -------------------------
-    # 1. پاسخ به سؤال Solo Quiz
-    # -------------------------
+    if data.startswith("deal_reject:"):
+        deal_id = data.replace("deal_reject:", "")
+
+        result = await DealService.reject_deal(
+            deal_id=deal_id,
+            user_id=user_id,
+        )
+
+        if not result["ok"]:
+            await bot.send_message(
+                user_id,
+                f"❌ Deal رد نشد.\nReason: {result.get('reason')}"
+            )
+            return
+
+        await bot.send_message(user_id, "❌ Deal rejected.")
+        return
+
+    if data.startswith("deal_accept:"):
+        deal_id = data.replace("deal_accept:", "")
+
+        result = await DealService.accept_and_resolve_deal(
+            deal_id=deal_id,
+            user_id=user_id,
+        )
+
+        if not result["ok"]:
+            reason = result.get("reason")
+
+            if reason == "insufficient_balance":
+                await bot.send_message(
+                    user_id,
+                    f"❌ موجودی کافی نیست.\n\n"
+                    f"Required: {result['required']}\n"
+                    f"Balance: {result['balance']}"
+                )
+                return
+
+            if reason == "trust_requirement_not_met":
+                await bot.send_message(
+                    user_id,
+                    f"❌ سطح اعتماد کافی نیست.\n\n"
+                    f"Required Trust: {result['required_trust']}\n"
+                    f"Your Trust: {result['current_trust']}"
+                )
+                return
+
+            await bot.send_message(
+                user_id,
+                f"❌ Deal قابل انجام نیست.\nReason: {reason}"
+            )
+            return
+
+        outcome = result["outcome"]
+        deal = result["deal"]
+
+        await bot.send_message(
+            user_id,
+            f"📄 نتیجه Deal\n\n"
+            f"Status: {deal.status}\n"
+            f"Success: {outcome['success']}\n"
+            f"Balance Effect: {outcome['profile_effects'].get('balance', 0)}\n\n"
+            f"{outcome['message']}"
+        )
+        return
+
     if data.startswith("quiz_ans:"):
         _, rest = data.split("quiz_ans:", 1)
         scenario_id, opt_str = rest.split(":")

@@ -1,6 +1,31 @@
 # ui.py
 
 class UI:
+
+
+    @staticmethod
+    def get_deal_buttons(deal_id: str):
+        return {
+            "inline_keyboard": [
+                [
+                    {
+                        "text": "✅ Accept",
+                        "callback_data": f"deal_accept:{deal_id}"
+                    },
+                    {
+                        "text": "❌ Reject",
+                        "callback_data": f"deal_reject:{deal_id}"
+                    },
+                ],
+                [
+                    {
+                        "text": "🔍 Inspect Risk",
+                        "callback_data": f"deal_inspect:{deal_id}"
+                    }
+                ]
+            ]
+        }
+        
     @staticmethod
     def get_main_menu():
         return {
