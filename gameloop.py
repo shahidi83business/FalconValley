@@ -3,7 +3,7 @@ from transitions.extensions.asyncio import AsyncMachine
 
 from models import RoundSession, StatusEnum
 from engine import GameEngine
-from services.state_service import StateService
+from state_service import StateService
 
 
 class GameLoop:

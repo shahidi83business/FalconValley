@@ -202,6 +202,48 @@ class MetaData(BaseDoc):
         name = "metadata"
 
 
+class Deal(BaseDoc):
+    deal_key: Indexed(str, unique=True) = Field(default_factory=_uuid_str)
+
+    proposer: Optional[Link[UserProfile]] = None
+    receiver: Optional[Link[UserProfile]] = None
+
+    scenario: Optional[Link[Scenario]] = None
+    session: Optional[Link[RoundSession]] = None
+
+    market_id: str = "global"
+    deal_type: str = None
+
+    title: str = "Untitled Deal"
+    description: Optional[str] = None
+
+    required_capital: int = 0
+    expected_return: int = 0
+    risk_level: float = 0.3  # 0.0 تا 1.0
+    trust_requirement: float = 50  # 0 تا 100
+
+    information_quality: float = 0.5  # 0.0 تا 1.0
+    time_limit_seconds: Optional[int] = None
+
+    status: DealStatusEnum = DealStatusEnum.pending
+
+    inspected_by_receiver: bool = False
+    accepted_at: Optional[datetime] = None
+    rejected_at: Optional[datetime] = None
+    resolved_at: Optional[datetime] = None
+
+    outcome: Dict[str, Any] = Field(default_factory=dict)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+    class Settings:
+        name = "deals"
+        indexes = [
+            "deal_key",
+            "market_id",
+            "status",
+            [("created_at", -1)],
+        ]
+ 
 class EconomyState(BaseDoc):
     session: Link[RoundSession]
     round_number: int = Field(default=0, ge=0)

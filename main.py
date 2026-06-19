@@ -14,6 +14,8 @@ from engine import GameEngine      # موتور محاسبات نتایج
 from ui import UI                  # کلاس رابط کاربری که ساختیم
 from questionfactory import QuestionFactory
 from judge_service import JudgeService
+from deal_service import DealService
+from callback_manager import CallbackManager
 
 load_dotenv()
 bot = TelegramBotAPI(os.getenv("BASE_URL") + os.getenv("BOT_TOKEN"))
@@ -31,6 +33,8 @@ active_quiz_users = set()  # کاربرهایی که باید هر دقیقه س
 quiz_state = {
     # user_id: {"pending_scenario_id": "...", "mode": "solo"|"pvp", "game_id": "..."}
 }
+
+callback_manager = None
 
 
 def clear_user_quiz_pending(user_id):

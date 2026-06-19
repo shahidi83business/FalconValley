@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from models import Deal, DealStatus
+from models import Deal, DealStatusEnum
 
 
 class DealService:
