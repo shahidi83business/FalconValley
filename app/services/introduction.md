@@ -1,40 +1,55 @@
-judge_service.py
+## judge_service.py
 
-این فایل (JudgeService) خیلی ساده‌تر از بقیه‌ست و نقش مشخصی داره.
+This file (JudgeService) is much simpler than the others and has a clear role.
 
-🧠 تصویر کلی خیلی ساده
+---
 
-این کلاس مثل یک داور (Judge) در بازی عمل می‌کنه:
+**Simple mental model**
 
-بررسی می‌کنه بازیکن جواب درست انتخاب کرده یا نه، و بر اساسش XP می‌ده
+This class acts like a judge in the game:
 
-questionfactor.py
+It checks whether the player selected the correct answer and then awards XP accordingly.
 
-این فایل (questionfactory.py) در اصل یک سیستم تولید و مدیریت سوالات آموزشی/بازی اقتصادی هست که هم با دیتابیس کار می‌کنه، هم با هوش مصنوعی سوال تولید می‌کنه.
+---
 
-اگر خیلی ساده بگم:
+## questionfactor.py
 
-اینجا “سوال‌های تستی بازی” ساخته می‌شن، ذخیره می‌شن، و برای بازیکن‌ها تولید می‌شن.
+This file (questionfactory.py) is a system for generating and managing educational / game-economy questions.
 
-session_service.py
+It works with both the database and AI to generate questions.
 
-این فایل (session_service.py) خیلی ساده و تمیزه و نقش مشخصی داره.
+---
 
-🧠 تصویر کلی خیلی ساده
+In simple terms:
 
-این تابع فقط یک کار انجام می‌دهد:
+This is where quiz questions are created, stored, and generated for players.
 
-🎮 ساختن یک “سشن (Session)” برای شروع یک دور بازی و ذخیره آن در دیتابیس
+---
 
-state_service.py
+## session_service.py
 
-این فایل (StateService) یکی از مهم‌ترین بخش‌های کل سیستمته، چون اینجا نتیجه‌ی بازی واقعاً روی دیتا “اعمال” میشه.
+This file (session_service.py) is very simple and has a single clear responsibility.
 
+---
 
-🧠 تصویر کلی خیلی ساده
+**Simple mental model**
 
-این کلاس مثل یک سیستم اعمال تغییرات (Effect Applier) هست:
+This function does only one thing:
 
-امتیازها را نمی‌سازد ❌
-تصمیم‌ها را نمی‌گیرد ❌
-فقط نتیجه را روی جهان بازی اعمال می‌کند ✅
+It creates a “session” for starting a game round and stores it in the database.
+
+---
+
+## state_service.py
+
+This file (StateService) is one of the most important parts of the entire system because it is where the actual game results are applied to the data.
+
+---
+
+**Simple mental model**
+
+This class acts like an effect-applier system:
+
+* It does not generate scores ❌
+* It does not make decisions ❌
+* It only applies the results to the game world ✅
