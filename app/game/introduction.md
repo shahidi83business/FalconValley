@@ -1,115 +1,146 @@
-deal_engine.py
+## deal_engine.py
 
-این فایل یک بخش کوچک اما مهم از پروژه است که نتیجه یک معامله (Deal) را محاسبه می‌کند.
+This file is a small but important part of the project that calculates the result of a deal (Deal).
 
-وظیفه اصلی این فایل
+---
 
-این فایل تصمیم می‌گیرد که یک معامله موفق می‌شود یا شکست می‌خورد و در نهایت چه تأثیری روی بازیکن می‌گذارد.
+**Main responsibility of this file**
 
-به زبان ساده، هر وقت بازیکن یک معامله را قبول کند، این فایل اجرا می‌شود و مشخص می‌کند:
+This file decides whether a deal is successful or fails, and what impact it has on the player.
 
-معامله موفق بوده یا نه.
-چقدر پول بازیکن کم یا زیاد شود.
-میزان اعتماد (Trust) چقدر تغییر کند.
-چه پیامی به بازیکن نمایش داده شود.
+In simple terms, whenever a player accepts a deal, this file is executed and determines:
 
-deal_service.py
+* Whether the deal was successful or not
+* How much the player’s money increases or decreases
+* How much Trust changes
+* What message is shown to the player
 
-این فایل (DealService) مسئول مدیریت چرخه‌ی عمر معامله‌ها است.
+---
 
-اگر فایل قبلی (DealEngine) مشخص می‌کرد نتیجه یک معامله چیست، این فایل مسئول ایجاد و تغییر وضعیت معامله است.
+## deal_service.py
 
-وظیفه اصلی این فایل
+This file (DealService) is responsible for managing the lifecycle of deals.
 
-این فایل سه کار اصلی انجام می‌دهد:
+If the previous file (DealEngine) determines the outcome of a deal, this file handles creating and updating the state of the deal.
 
-ایجاد معامله جدید
-وقتی یک بازیکن می‌خواهد به بازیکن دیگری پیشنهاد معامله بدهد، این فایل یک معامله جدید می‌سازد و آن را در پایگاه داده ذخیره می‌کند.
-قبول معامله
-اگر بازیکن مقابل معامله را قبول کند، وضعیت معامله از «در انتظار» به «قبول شده» تغییر می‌کند.
-رد معامله
-اگر بازیکن معامله را نپذیرد، وضعیت آن به «رد شده» تغییر می‌کند.
+---
 
-engine.py
+**Main responsibility of this file**
 
-این کد در اصل یک موتور شبیه‌سازی بازی تصمیم‌گیری بین دو بازیکن هست. خیلی ساده بگم:
-این کلاس میاد تصمیم‌های دو نفر رو می‌گیره (مثل همکاری، خیانت، جنگ، عقب‌نشینی) و بعد:
+This file performs three main tasks:
 
-به هر نفر امتیاز می‌ده (score)
-و هم‌زمان یک سری اثرات روی شخصیت و کل سیستم اقتصاد اعمال می‌کنه
+---
 
-1. مذاکره (Negotiation)
+**1. Creating a new deal**
 
-مثل بازی “همکاری یا خیانت”
+* When a player wants to propose a deal to another player, this file creates a new deal and stores it in the database.
 
-2. جنگ (Chicken / War)
+---
 
-مثل بازی “کی جا میزنه؟ کی تا آخر میره جلو؟”
+**2. Accepting a deal**
 
-3. حالت ترکیبی (War vs Negotiation)
+* If the other player accepts the deal, the deal status is changed from “pending” to “accepted”.
 
-وقتی یکی جنگ می‌خواد یکی مذاکره
+---
 
-gameloop.py
+**3. Rejecting a deal**
 
-این فایل (gameloop.py) در اصل مدیر اصلی جریان بازی (Game Flow Controller) هست. یعنی کاری به محاسبه امتیاز نداره؛ کارش اینه که:
+* If the player does not accept the deal, the status is changed to “rejected”.
 
-بازی رو مرحله‌به‌مرحله جلو ببره، تصمیم‌ها رو جمع کنه، و آخرش نتیجه رو بسازه و ذخیره کنه.
+---
 
-🧠 تصویر کلی خیلی ساده
+## engine.py
 
-این کلاس مثل یک کارگردان بازی عمل می‌کنه:
+This code is essentially a game decision simulation engine between two players.
 
-می‌گه بازی الان در چه مرحله‌ایه
-منتظر تصمیم بازیکن‌ها می‌مونه
-وقتی همه آماده شدن → می‌ره مرحله بعد
-در پایان → نتیجه رو از GameEngine می‌گیره
-بعد نتیجه رو در دیتابیس ذخیره می‌کنه
+In simple terms:
+It takes the decisions of two players (such as cooperation, betrayal, war, retreat) and then:
 
-manager.py
+* Assigns each player a score
+* Applies effects on character attributes and the overall economy system
 
-این فایل (manager.py) در اصل مدیر سطح بالای کل بازی‌ها (Game Registry / Game Controller) هست.
+---
 
-اگر GameLoop کارگردان یک بازی بود، این یکی میشه:
+**1. Negotiation**
 
-📌 «سیستم مدیریت کل بازی‌های فعال در حافظه + اتصال بازیکن‌ها به بازی‌ها»
+Like the game “cooperate or betray”
 
-🧠 تصویر کلی خیلی ساده
+---
 
-این کلاس سه کار اصلی انجام می‌دهد:
+**2. War (Chicken / War)**
 
-1. ساخت بازی جدید
-2. پیدا کردن بازی یک کاربر
-3. پاک کردن بازی بعد از اتمام
+Like the game “who backs down first?”
 
-marketfactor.py
+---
 
-این فایل (marketfactory.py) در اصل سیستم ساخت و مدیریت بازارهای بازی (Game Markets) هست.
+**3. Hybrid mode (War vs Negotiation)**
 
-اگر ساده بخوام بگم:
+When one player chooses war and the other chooses negotiation
 
-اینجا جاییه که “دنیاها / سناریوهای اقتصادی بازی” تعریف، ذخیره و حتی با هوش مصنوعی ساخته می‌شن.
+---
 
-🧠 تصویر کلی خیلی ساده
+## gameloop.py
 
-این کلاس سه کار اصلی می‌کنه:
+This file is the main controller of the game flow.
 
-1. نگه داشتن بازارهای آماده (مثل Energy و Tech)
-2. لود کردن بازارها از دیتابیس
-3. ساخت بازار جدید با AI
+It does not calculate scores; instead, it:
 
-scenario_engine.py
+* Advances the game step by step
+* Collects player decisions
+* Moves to the next stage when both players are ready
+* At the end, gets results from the GameEngine
+* Stores the result in the database
 
-این فایل (SimpleScenarioEngine) در اصل یک سیستم ساده برای ساخت سناریوهای بازی اقتصادی + ساخت حریف‌ها (AI + Random) هست.
+---
 
-اگر خیلی ساده بگم:
+## manager.py
 
-این کد هم “داستان بازی” می‌سازه، هم “بازیکن‌های رقیب” تولید می‌کنه، هم یک راند کامل بازی آماده می‌کنه.
+This file is the high-level manager of all games (Game Registry / Game Controller).
 
-🧠 تصویر کلی خیلی ساده
+If GameLoop is the director of a single game, this is:
 
-این کلاس 3 کار انجام می‌ده:
+“the system that manages all active games in memory and connects players to games”
 
-1. با AI سناریو می‌سازه (داستان مرحله)
-2. حریف‌های مصنوعی تولید می‌کنه
-3. همه رو کنار هم می‌ذاره و یک “راند بازی” آماده می‌کنه
+---
+
+**Main responsibilities**
+
+1. Creating a new game
+2. Finding a user’s game
+3. Removing a game after it ends
+
+---
+
+## marketfactor.py
+
+This file (marketfactory.py) is the system for creating and managing game markets.
+
+In simple terms:
+
+This is where the “worlds / economic scenarios” of the game are defined, stored, and even generated using AI.
+
+---
+
+**Main responsibilities**
+
+1. Maintaining predefined markets (like Energy and Tech)
+2. Loading markets from the database
+3. Creating new markets using AI
+
+---
+
+## scenario_engine.py
+
+This file (SimpleScenarioEngine) is a simple system for generating game scenarios and creating opponents (AI + random).
+
+In very simple terms:
+
+This code builds the “story of the game”, generates “rival players”, and prepares a full game round.
+
+---
+
+**Main responsibilities**
+
+1. Creating scenarios using AI (stage story)
+2. Generating artificial opponents
+3. Putting everything together to prepare a full game round
