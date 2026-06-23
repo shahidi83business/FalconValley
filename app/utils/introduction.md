@@ -1,9 +1,11 @@
-logger.py
+## logger.py
 
-این فایل (logger.py) خیلی ساده‌تر از بقیه است، ولی نقش خیلی مهمی در دیباگ و کنترل سیستم دارد.
+This file (logger.py) is much simpler than the others, but it plays a very important role in debugging and system monitoring.
 
-🧠 تصویر کلی خیلی ساده
+---
 
-این فایل فقط یک کار می‌کند:
+🧠 **Simple mental model**
 
-📌 ثبت کردن اتفاقات سیستم (log گرفتن) هم در فایل و هم در کنسول
+This file does only one thing:
+
+📌 It records system events (logging), both in a file and in the console.
