@@ -1,22 +1,27 @@
-RAG چیست؟
+What is RAG?
 
-RAG (Retrieval-Augmented Generation) یعنی قبل از اینکه هوش مصنوعی جواب بدهد، اول در بین اسناد و اطلاعات موجود جستجو می‌کند و فقط بر اساس همان اطلاعات پاسخ می‌دهد.
+RAG (Retrieval-Augmented Generation) means that before an AI answers, it first searches through existing documents and information, and only responds based on that data.
 
-به زبان ساده:
+In simple terms:
 
-به جای اینکه مدل از حافظه خودش جواب بدهد، اول کتابخانه‌ای از متن‌ها را می‌گردد، مطالب مرتبط را پیدا می‌کند و بعد با استفاده از آن‌ها پاسخ می‌سازد.
+Instead of the model answering from its own memory, it first searches a library of texts, finds relevant content, and then generates an answer using that information.
 
-این فایل چه وظیفه‌ای دارد؟
+What does this file do?
 
-این فایل نقش موتور جستجو و پاسخ‌دهی را در پروژه دارد و سه کار اصلی انجام می‌دهد:
+This file acts as the search and response engine in the project and performs three main tasks:
 
-ذخیره کردن اسناد
-متن‌هایی که به آن داده می‌شود را دریافت می‌کند.
-آن‌ها را به فرمتی تبدیل می‌کند که کامپیوتر بتواند معنی‌شان را مقایسه کند (Embedding).
-سپس در حافظه نگه می‌دارد.
-پیدا کردن متن‌های مرتبط
-وقتی کاربر سؤال می‌پرسد، سؤال هم به همان فرمت تبدیل می‌شود.
-بعد بین تمام متن‌های ذخیره‌شده می‌گردد و نزدیک‌ترین و مرتبط‌ترین متن‌ها را پیدا می‌کند.
-تولید پاسخ
-متن‌های مرتبط را همراه سؤال به مدل GPT می‌دهد.
-از مدل می‌خواهد فقط بر اساس همین متن‌ها پاسخ بدهد و حتی منبع هر بخش از پاسخ را هم ذکر کند.
+1. Storing documents
+
+It receives the texts given to it.
+It converts them into a format that a computer can compare in meaning (Embedding).
+Then it stores them in memory.
+
+2. Finding relevant texts
+
+When a user asks a question, the question is also converted into the same format.
+It then searches through all stored texts and finds the closest and most relevant ones.
+
+3. Generating answers
+
+It sends the relevant texts along with the question to the GPT model.
+It asks the model to answer only based on those texts and even to cite the source of each part of the answer.
