@@ -1,38 +1,55 @@
-db_helper.py
+## db_helper.py
 
-این فایل مسئول اتصال پروژه به پایگاه داده است.
+This file is responsible for connecting the project to the database.
 
-به زبان ساده، هر زمان برنامه بخواهد اطلاعاتی مثل کاربران، بازی‌ها، بازارها، معاملات یا سؤال‌ها را ذخیره یا بازیابی کند، ابتدا باید از طریق این فایل به پایگاه داده وصل شود.
+In simple terms, whenever the program needs to store or retrieve information such as users, games, markets, trades, or questions, it first connects to the database through this file.
 
-وظیفه اصلی این فایل
+---
 
-این فایل سه کار اصلی انجام می‌دهد:
+**Main responsibility of this file**
 
-برقراری اتصال به MongoDB
-هنگام شروع برنامه، تلاش می‌کند به پایگاه داده متصل شود.
-اگر اتصال موفق باشد، برنامه می‌تواند اطلاعات را بخواند و ذخیره کند.
-آماده‌سازی مدل‌های داده
-تمام مدل‌های پروژه (مثل کاربر، بازار، معامله و ...) را به پایگاه داده معرفی می‌کند تا بتوانند با آن کار کنند.
-قطع اتصال
-هنگام پایان اجرای برنامه، ارتباط با پایگاه داده را به‌درستی می‌بندد تا منابع سیستم آزاد شوند.
+This file performs three main tasks:
 
-models.py
+---
 
-این فایل (models.py) یکی از مهم‌ترین فایل‌های پروژه است، چون ساختار تمام اطلاعات پروژه را تعریف می‌کند.
+**1. Establishing a connection to MongoDB**
 
-اگر پروژه را یک بازی آنلاین در نظر بگیریم، این فایل مشخص می‌کند که چه نوع اطلاعاتی وجود دارند، هر کدام چه ویژگی‌هایی دارند و چگونه در پایگاه داده ذخیره می‌شوند.
+* When the program starts, it tries to connect to the database.
+* If the connection is successful, the program can read and store data.
 
-وظیفه اصلی این فایل
+---
 
-این فایل در واقع نقشه پایگاه داده (Database Schema) پروژه است.
+**2. Preparing data models**
 
-یعنی مشخص می‌کند:
+* It registers all project models (such as users, markets, trades, etc.) with the database so they can interact with it.
 
-کاربر چه اطلاعاتی دارد.
-پروفایل کاربر چه ویژگی‌هایی دارد.
-بازارها چگونه تعریف می‌شوند.
-سؤال‌ها چه ساختاری دارند.
-بازی‌ها چگونه ذخیره می‌شوند.
-تصمیم‌های بازیکنان چگونه ثبت می‌شوند.
-معامله‌ها چه اطلاعاتی دارند.
-وضعیت اقتصاد بازی چگونه نگهداری می‌شود.
+---
+
+**3. Closing the connection**
+
+* When the program ends, it properly closes the database connection to free system resources.
+
+---
+
+## models.py
+
+This file is one of the most important files in the project because it defines the structure of all project data.
+
+If we think of the project as an online game, this file defines what types of data exist, what properties each one has, and how they are stored in the database.
+
+---
+
+**Main responsibility of this file**
+
+This file is essentially the database schema of the project.
+
+It defines:
+
+* What information a user has
+* What properties a user profile includes
+* How markets are defined
+* What structure questions have
+* How games are stored
+* How player decisions are recorded
+* What information trades contain
+* How the in-game economy state is maintained
