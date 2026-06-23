@@ -1,74 +1,113 @@
-callback_manager
-وظیفه اصلی این فایل
+**callback_manager**
 
-می‌توان گفت این فایل مرکز کنترل تعاملات کاربر با ربات است.
+**Main responsibility of this file**
 
-هر بار که کاربر دکمه‌ای را فشار می‌دهد:
+This file can be considered the control center of the user’s interaction with the bot.
 
-تشخیص می‌دهد کاربر روی چه دکمه‌ای کلیک کرده است.
-بررسی می‌کند آیا این کار در وضعیت فعلی مجاز است یا نه.
-اگر مجاز باشد، بخش مربوطه را اجرا می‌کند.
-در پایان نتیجه را برای کاربر ارسال می‌کند.
-بخش‌های مهمی که مدیریت می‌کند
+Every time the user presses a button:
 
-این فایل تقریباً تمام اتفاقات مهم بازی را کنترل می‌کند:
+* It detects which button the user clicked.
+* It checks whether that action is allowed in the current state.
+* If it is allowed, it executes the related section.
+* Finally, it sends the result back to the user.
 
-مدیریت معامله (Deal)
-قبول یا رد کردن معامله
-بررسی اینکه معامله امکان انجام دارد یا نه
-نمایش نتیجه معامله
-مدیریت کوییز
-دریافت پاسخ بازیکن
-بررسی درست یا غلط بودن جواب
-اضافه کردن امتیاز (XP)
-ارسال توضیح پاسخ
-مدیریت Matchmaking
-قرار دادن بازیکن در صف انتظار
-پیدا کردن حریف
-ساخت بازی جدید وقتی دو نفر آماده باشند
-انتخاب استراتژی
-بررسی اینکه الان زمان انتخاب استراتژی هست یا نه
-ثبت انتخاب بازیکن
-تصمیم نهایی بازی
-ثبت انتخاب هر دو بازیکن
-زمانی که هر دو انتخاب کردند، نتیجه بازی را محاسبه می‌کند.
-حالت جنگ (Chicken Game)
-ثبت تصمیم جنگی هر بازیکن
-بعد از انتخاب هر دو نفر، نتیجه را محاسبه می‌کند.
+---
 
+**Important parts it manages**
 
-telegrampi.py
+This file controls almost all major events in the game:
 
-به زبان ساده، این فایل باعث می‌شود برنامه بتواند با سرورهای تلگرام صحبت کند، بدون اینکه بقیه قسمت‌های پروژه درگیر جزئیات این ارتباط شوند.
+---
 
-وظیفه اصلی این فایل
+**Deal management (Deal)**
 
-این فایل سه کار اصلی انجام می‌دهد:
+* Accepting or rejecting a deal
+* Checking whether the deal can be executed
+* Showing the result of the deal
 
-اتصال به تلگرام
-در ابتدای اجرای برنامه یک ارتباط (Session) با سرورهای تلگرام برقرار می‌کند.
-دریافت پیام‌ها و رویدادها
+---
 
-به صورت مداوم از تلگرام می‌پرسد:
+**Quiz management**
 
-«پیام یا کلیک جدیدی برای ربات آمده؟»
+* Receiving the player’s answer
+* Checking whether the answer is correct or incorrect
+* Adding XP (experience points)
+* Sending the explanation of the answer
 
-اگر چیزی وجود داشته باشد، آن را به برنامه برمی‌گرداند.
-ارسال پیام
-هر زمان بخش دیگری از برنامه بخواهد برای کاربر پیامی بفرستد، از این فایل استفاده می‌کند.
-این فایل پیام را به تلگرام ارسال می‌کند و در صورت نیاز دکمه‌های (Keyboard) مربوطه را هم همراه پیام می‌فرستد
+---
 
+**Matchmaking management**
 
+* Placing the player in a waiting queue
+* Finding an opponent
+* Creating a new game when two players are ready
 
-ui.py
-وظیفه اصلی این فایل
+---
 
-این فایل فقط ظاهر دکمه‌ها را می‌سازد و هیچ منطقی از بازی را اجرا نمی‌کند.
+**Strategy selection**
 
-مثلاً مشخص می‌کند:
+* Checking whether it is currently the time to choose a strategy
+* Recording the player’s choice
 
-چه دکمه‌هایی نمایش داده شوند.
-متن روی هر دکمه چیست.
-وقتی روی هر دکمه کلیک شود، چه شناسه‌ای برای برنامه ارسال شود.
+---
 
-خود این فایل تصمیم نمی‌گیرد بعد از کلیک چه اتفاقی بیفتد؛ آن کار را فایل callback_manager.py انجام می‌دهد.
+**Final game decision**
+
+* Recording both players’ choices
+* When both have made their selection, calculating the game result
+
+---
+
+**War mode (Chicken Game)**
+
+* Recording each player’s war decision
+* After both players choose, calculating the result
+
+---
+
+## telegrampi.py
+
+In simple terms, this file allows the program to communicate with Telegram servers without other parts of the project being involved in the communication details.
+
+---
+
+**Main responsibility of this file**
+
+This file performs three main tasks:
+
+---
+
+**1. Connecting to Telegram**
+
+* At the start of the program, it establishes a session with Telegram servers.
+
+---
+
+**2. Receiving messages and events**
+
+* It continuously checks Telegram for new events:
+  “Has a new message or button click arrived for the bot?”
+* If something exists, it returns it to the program.
+
+---
+
+**3. Sending messages**
+
+* Whenever another part of the program wants to send a message to a user, it uses this file.
+* It sends the message to Telegram and, if needed, also includes the related keyboard buttons.
+
+---
+
+## ui.py
+
+**Main responsibility of this file**
+
+This file only builds the appearance of buttons and does not execute any game logic.
+
+For example, it defines:
+
+* Which buttons should be displayed
+* What the text on each button is
+* What identifier is sent to the program when a button is clicked
+
+This file itself does not decide what happens after a click; that is handled by `callback_manager.py`.
