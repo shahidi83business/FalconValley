@@ -18,7 +18,7 @@ graph TD;
     TradeHub --> TrustScore;
     TrustScore --> ReputationMultiplier;
 
-    
+    Another_user_come_in_the_same_market --> Decision
     Decision --> |Prisoner's Dilemma| PD_Coop(Coop: +Bonus, Peace)
     PD_Coop --> MarketExit;
     Decision --> |Chicken Game| CG_Conflict(Conflict: -Penalty, War)
