@@ -1,9 +1,9 @@
 #gameloop.py
 from transitions.extensions.asyncio import AsyncMachine
 
-from models import RoundSession, StatusEnum
-from engine import GameEngine
-from state_service import StateService
+from app.data.models import RoundSession, StatusEnum
+from app.game.engine import GameEngine
+from app.services.state_service import StateService
 
 
 class GameLoop:
@@ -73,7 +73,6 @@ class GameLoop:
             "investments": self._stringify_keys(self.investments),
         })
 
-
         self.session.game_data = existing_game_data
 
         await self.session.save()
@@ -86,15 +85,6 @@ class GameLoop:
         return [p["id"] for p in self.players]
 
     def _get_game_mode(self):
-        """
-        Determines which game path should be finalized.
-
-        Current logic:
-        - if war_choices exists for all players => CHICKEN / WAR
-        - elif choices exists for all players => NEGOTIATION
-        - else fallback based on strategy
-        """
-
         if self.is_everyone_ready("war_choices"):
             return "CHICKEN"
 
@@ -106,7 +96,7 @@ class GameLoop:
 
         return "UNKNOWN"
 
-    async def _stringify_keys(self, value):
+    def _stringify_keys(self, value):
         if isinstance(value, dict):
             return {
                 str(key): self._stringify_keys(inner_value)
@@ -119,38 +109,16 @@ class GameLoop:
         return value
 
     async def finalize(self):
-        """
-        Final step of the game loop:
-        1. Detect mode
-        2. Calculate outcome with GameEngine
-        3. Apply effects with StateService
-        4. Save outcome in session.game_data
-        5. Finish session
-        """
-
         mode = self._get_game_mode()
 
         if mode == "NEGOTIATION":
-            outcome = await GameEngine.calculate_negotiation_outcome(
-                session=self.session,
-                players=self.players,
-                choices=self.choices,
-            )
+            outcome = GameEngine.calculate_negotiation_outcome(self)
 
         elif mode == "CHICKEN":
-            outcome = await GameEngine.calculate_chicken_outcome(
-                session=self.session,
-                players=self.players,
-                war_choices=self.war_choices,
-                war_penalty=self.war_penalty,
-            )
+            outcome = GameEngine.calculate_chicken_outcome(self)
 
         elif mode == "STRATEGY":
-            outcome = await GameEngine.calculate_strategy_outcome(
-                session=self.session,
-                players=self.players,
-                strategy=self.strategy,
-            )
+            outcome = GameEngine.calculate_war_advantage_outcome(self)
 
         else:
             outcome = {

@@ -11,7 +11,7 @@ import os
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
-from models import Scenario
+from app.data.models import Scenario
 
 load_dotenv()
 
@@ -35,7 +35,10 @@ class QuestionBlueprint:
 
 class QuestionFactory:
     def __init__(self):
-        self.client = AsyncOpenAI(base_url=os.environ.get("OPENAI_BASE_URL"),api_key=os.environ.get("OPENAI_API_KEY"))
+        self.client = AsyncOpenAI(
+            base_url=os.environ.get("OPENAI_BASE_URL"),
+            api_key=os.environ.get("OPENAI_API_KEY"),
+        )
         self._questions: Dict[str, QuestionBlueprint] = {}
 
     def _register(self, q: QuestionBlueprint):

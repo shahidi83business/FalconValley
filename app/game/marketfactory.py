@@ -5,11 +5,11 @@ from dataclasses import dataclass, asdict
 from typing import Dict, List
 import uuid, json, re
 
-from raghelper import DocChunk
+from app.ai.raghelper import DocChunk
 from openai import AsyncOpenAI
 import os
 from dotenv import load_dotenv
-from models import Market  # <-- مهم: ایمپورت مدل دیتابیس
+from app.data.models import Market
 load_dotenv()
 
 
@@ -39,7 +39,7 @@ class MarketFactory:
             base_market="energy",
             payoff={"coop": 4, "betray": 6, "both": -1},
             allowed_modes=["prisoner", "chicken", "war"],
-            rag_docs=["Energy market is a classical Prisoner’s Dilemma…"],
+            rag_docs=["Energy market is a classical Prisoner's Dilemma…"],
         ))
 
         self._register(MarketBlueprint(
@@ -57,7 +57,7 @@ class MarketFactory:
         self._markets[m.id] = m
 
     def get(self, market_id: str) -> MarketBlueprint:
-        return self._markets[market_id]
+        return self._markets.get(market_id)
 
     def all_markets(self) -> List[MarketBlueprint]:
         return list(self._markets.values())
@@ -78,7 +78,6 @@ class MarketFactory:
             self._markets[bp.id] = bp
 
     async def register_new_market(self, blueprint: MarketBlueprint):
-        # upsert برای اینکه اگر market_id تکراری شد، آپدیت کند
         db_market = Market(
             market_id=blueprint.id,
             display_name=blueprint.display_name,
@@ -92,9 +91,6 @@ class MarketFactory:
         await db_market.save()
         self._register(blueprint)
 
-    # -------------------------------
-    # Generate new market using AI
-    # -------------------------------
     async def generate_market(
         self,
         *,
@@ -139,7 +135,6 @@ Return JSON with exactly:
 
         raw = resp.choices[0].message.content.strip()
 
-        # اگر احیاناً AI چیزی قبل/بعد JSON گذاشت، JSON را جدا کن
         json_text = raw
         m = re.search(r"\{.*\}", raw, flags=re.S)
         if m:

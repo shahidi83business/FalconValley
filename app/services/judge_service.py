@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from models import Scenario
+from app.data.models import Scenario
 
 
 @dataclass

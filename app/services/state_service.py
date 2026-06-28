@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Any, Optional
 
-from models import UserProfile, EconomyState, RoundSession
+from app.data.models import UserProfile, EconomyState, RoundSession
 
 
 class StateService:
@@ -58,10 +58,6 @@ class StateService:
 
     @staticmethod
     async def get_or_create_economy_state(session: RoundSession) -> EconomyState:
-        """
-        Finds the EconomyState for the given round session.
-        If none exists, creates one with safe defaults.
-        """
         state = await EconomyState.find_one(EconomyState.session.id == session.id)
 
         if state:
@@ -91,10 +87,6 @@ class StateService:
         profile: UserProfile,
         effects: Dict[str, Any]
     ) -> UserProfile:
-        """
-        Applies effect deltas to a user profile in memory.
-        Does not save automatically.
-        """
         for field_name, delta in effects.items():
             if not hasattr(profile, field_name):
                 continue
@@ -116,10 +108,6 @@ class StateService:
         economy: EconomyState,
         effects: Dict[str, Any]
     ) -> EconomyState:
-        """
-        Applies economy deltas in memory.
-        Does not save automatically.
-        """
         for field_name, delta in effects.items():
             if not hasattr(economy, field_name):
                 continue
@@ -142,22 +130,6 @@ class StateService:
         players: list,
         outcome: Dict[str, Any],
     ) -> Dict[str, Any]:
-        """
-        Applies a PvP game outcome to:
-        - each player's UserProfile
-        - the shared EconomyState for this session
-
-        Expected outcome shape:
-        {
-            "scores": {123: 2, 456: -1},
-            "effects": {
-                123: {"public_standing": 2},
-                456: {"peer_standing": -3},
-                "economy": {"trust": -4}
-            },
-            "mode": "NEGOTIATION"
-        }
-        """
         effects = outcome.get("effects", {})
         scores = outcome.get("scores", {})
 
@@ -178,8 +150,6 @@ class StateService:
 
             cls.apply_effects_to_profile(profile, player_effects)
 
-            # اگر بعداً خواستی score cumulative نگه داری،
-            # اینجا فیلدی مثل total_score را هم آپدیت کن
             if hasattr(profile, "total_score"):
                 current_score = getattr(profile, "total_score", 0) or 0
                 setattr(profile, "total_score", current_score + scores.get(user_id, 0))
@@ -187,11 +157,8 @@ class StateService:
             if hasattr(profile, "total_decisions"):
                 profile.total_decisions = (profile.total_decisions or 0) + 1
 
-            # counters اختیاری رفتاری
-            # این‌ها را بر اساس outcome/mode بعداً می‌توان دقیق‌تر کرد
             updated_profiles.append(profile)
 
-        # save all profiles
         for profile in updated_profiles:
             await profile.save()
 
@@ -212,10 +179,6 @@ class StateService:
         profile_effects: Dict[str, Any],
         economy_effects: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """
-        For scenario/decision based solo gameplay.
-        Applies profile effects to one user and optional economy effects.
-        """
         economy_effects = economy_effects or {}
 
         profile = await cls.get_profile_by_user_id(user_id)

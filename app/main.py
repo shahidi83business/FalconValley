@@ -5,17 +5,17 @@ import logging
 from dotenv import load_dotenv
 
 # Helpers & Models
-from db_helper import connect_to_database
-from telegramapi import TelegramBotAPI
-from models import UserProfile,Scenario, Decision
-from marketfactory import MarketFactory
-from manager import game_manager  # مدیریت مرکزی بازی‌ها
-from engine import GameEngine      # موتور محاسبات نتایج
-from ui import UI                  # کلاس رابط کاربری که ساختیم
-from questionfactory import QuestionFactory
-from judge_service import JudgeService
-from deal_service import DealService
-from callback_manager import CallbackManager
+from app.data.db_helper import connect_to_database
+from app.bot.telegramapi import TelegramBotAPI
+from app.data.models import UserProfile, Scenario, Decision
+from app.game.marketfactory import MarketFactory
+from app.game.manager import game_manager  # مدیریت مرکزی بازی‌ها
+from app.game.engine import GameEngine      # موتور محاسبات نتایج
+from app.bot.ui import UI                  # کلاس رابط کاربری که ساختیم
+from app.services.questionfactory import QuestionFactory
+from app.services.judge_service import JudgeService
+from app.game.deal_service import DealService
+from app.bot.callback_manager import CallbackManager
 
 load_dotenv()
 bot = TelegramBotAPI(os.getenv("BASE_URL") + os.getenv("BOT_TOKEN"))
@@ -176,11 +176,6 @@ async def handle_text(msg):
     if text == "/play":
         profile = await UserProfile.find_one(UserProfile.telegram_id == user_id)
 
-        # اگر پروفایل نداری، بسته به مدل خودت اینجا بساز
-        # if not profile:
-        #     profile = UserProfile(telegram_id=user_id, score=0)
-        #     await profile.insert()
-
         active_quiz_users.add(user_id)
 
         quiz_state.setdefault(
@@ -251,8 +246,26 @@ async def quiz_scheduler_loop():
 # -------------------------
 
 async def main():
+    global callback_manager
+
     await connect_to_database()
     await market_factory.load_from_db()
+
+    deal_service = DealService()
+
+    callback_manager = CallbackManager(
+        bot=bot,
+        ui=UI,
+        judge=judge,
+        deal_service=deal_service,
+        market_factory=market_factory,
+        game_manager=game_manager,
+        quiz_state=quiz_state,
+        waiting_queue=waiting_queue,
+        clear_user_quiz_pending=clear_user_quiz_pending,
+        handle_strategy_logic=_handle_strategy_logic,
+        finalize_game=finalize_game,
+    )
 
     await bot.start()  # ✅ اضافه شود: قبل از اولین get_updates
     asyncio.create_task(quiz_scheduler_loop())  # ✅
@@ -272,6 +285,40 @@ async def main():
     finally:
         # ✅ برای خروج تمیز (Ctrl+C یا خطا)
         await bot.close()
+
+
+async def _handle_strategy_logic(game, user_id, strategy):
+    """Placeholder for strategy logic — wires into game FSM."""
+    game.strategy[user_id] = strategy
+
+    if len(game.strategy) == 2:
+        p1_id = game.players[0]["id"]
+        p2_id = game.players[1]["id"]
+        s1 = game.strategy.get(p1_id)
+        s2 = game.strategy.get(p2_id)
+
+        if s1 == "negotiation" and s2 == "negotiation":
+            await game.start_negotiation()
+            for p in game.players:
+                await bot.send_message(
+                    p["id"],
+                    "🤝 Both chose negotiation. Chat freely, then decide:",
+                    reply_markup=UI.get_negotiation_buttons()
+                )
+            asyncio.create_task(negotiation_timeout(game))
+
+        elif s1 == "war" and s2 == "war":
+            await game.start_chicken()
+            for p in game.players:
+                await bot.send_message(
+                    p["id"],
+                    "⚔️ Both chose war! Chicken game begins:",
+                    reply_markup=UI.get_chicken_buttons()
+                )
+
+        else:
+            results = GameEngine.calculate_war_advantage_results(game)
+            await finalize_game(game, results)
 
 
 if __name__ == "__main__":

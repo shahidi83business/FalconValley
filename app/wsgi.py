@@ -1,4 +1,2 @@
-from app import app
-
-if __name__ == "__main__":
-    app.run()
+# wsgi.py - legacy entry point (not used in Docker; use run.py)
+# Kept for backward compatibility only.

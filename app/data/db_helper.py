@@ -3,7 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
 from beanie import init_beanie
 
-from models import (
+from app.data.models import (
     Category,
     EconomyFunction,
     User,

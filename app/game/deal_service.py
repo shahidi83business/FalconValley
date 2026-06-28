@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from models import Deal, DealStatusEnum
+from app.data.models import Deal, DealStatusEnum
 
 
 class DealService:
@@ -31,32 +31,49 @@ class DealService:
             expected_return=expected_return,
             risk_level=risk_level,
             trust_requirement=trust_requirement,
-            status=DealStatus.pending,
+            status=DealStatusEnum.pending,
         )
 
         await deal.insert()
         return deal
 
-    async def accept_deal(self, deal_id):
+    async def accept_deal(self, deal_id, user_id=None):
 
         deal = await Deal.get(deal_id)
 
-        if not deal or deal.status != DealStatus.pending:
-            return None
+        if not deal or deal.status != DealStatusEnum.pending:
+            return {"ok": False, "reason": "deal_not_found_or_not_pending"}
 
-        deal.status = DealStatus.accepted
+        deal.status = DealStatusEnum.accepted
         await deal.save()
 
-        return deal
+        return {"ok": True, "deal": deal}
 
-    async def reject_deal(self, deal_id):
+    async def reject_deal(self, deal_id, user_id=None):
 
         deal = await Deal.get(deal_id)
 
         if not deal:
-            return None
+            return {"ok": False, "reason": "deal_not_found"}
 
-        deal.status = DealStatus.rejected
+        deal.status = DealStatusEnum.rejected
         await deal.save()
 
-        return deal
+        return {"ok": True, "deal": deal}
+
+    async def accept_and_resolve_deal(self, deal_id, user_id=None):
+        deal = await Deal.get(deal_id)
+
+        if not deal or deal.status != DealStatusEnum.pending:
+            return {"ok": False, "reason": "deal_not_found_or_not_pending"}
+
+        deal.status = DealStatusEnum.accepted
+        await deal.save()
+
+        outcome = {
+            "success": True,
+            "message": "Deal accepted and resolved.",
+            "profile_effects": {"balance": deal.expected_return - deal.required_capital},
+        }
+
+        return {"ok": True, "deal": deal, "outcome": outcome}

@@ -4,8 +4,8 @@ import logging
 from dataclasses import dataclass
 from typing import Callable, Awaitable, Dict, Optional, List, Any
 
-from models import UserProfile, Scenario
-from engine import GameEngine
+from app.data.models import UserProfile, Scenario
+from app.game.engine import GameEngine
 
 
 @dataclass
@@ -38,15 +38,6 @@ class CallbackRouter:
 
         if not data or user_id is None:
             return None
-
-        # پشتیبانی از این فرمت‌ها:
-        # deal_accept:DEAL_ID
-        # deal_reject:DEAL_ID
-        # quiz_ans:SCENARIO_ID:OPTION
-        # market_global
-        # strategy_war
-        # choice_cooperate
-        # war_attack
 
         if ":" in data:
             parts = data.split(":")
@@ -309,7 +300,6 @@ class CallbackManager:
         st = self.ensure_quiz_state(ctx.user_id, market_id=m_id)
         st["market_id"] = m_id
 
-        # اگر کسی منتظر این market نیست
         if self.waiting_queue.get(m_id) is None:
             self.waiting_queue[m_id] = {
                 "id": ctx.user_id,
@@ -322,10 +312,8 @@ class CallbackManager:
             )
             return
 
-        # اگر یک نفر منتظر است، match بساز
         opponent = self.waiting_queue.pop(m_id)
 
-        # جلوگیری از match شدن کاربر با خودش
         if opponent["id"] == ctx.user_id:
             self.waiting_queue[m_id] = opponent
             await self.bot.send_message(ctx.user_id, "هنوز منتظر حریف هستی...")
@@ -340,7 +328,6 @@ class CallbackManager:
             m_id
         )
 
-        # پاک کردن سؤال‌های solo باز
         self.clear_user_quiz_pending(opponent["id"])
         self.clear_user_quiz_pending(ctx.user_id)
 
