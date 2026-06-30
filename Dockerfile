@@ -10,4 +10,4 @@ COPY . .
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "run.py"]
+CMD ["python","run.py"]
