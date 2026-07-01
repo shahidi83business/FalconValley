@@ -271,20 +271,24 @@ async def main():
     asyncio.create_task(quiz_scheduler_loop())  # ✅
     print("🤖 Bot is running...")
 
-    offset = None
-    try:
-        while True:
-            updates = await bot.get_updates(offset)
-            for update in updates.get("result", []):
+    offset = 0
+
+    while True:
+        updates = await bot.get_updates(offset=offset, timeout=30)
+
+        results = updates.get("result", [])
+
+        if results:
+            for update in results:
                 offset = update["update_id"] + 1
+
                 if "message" in update:
                     await handle_text(update["message"])
+
                 elif "callback_query" in update:
                     await handle_callback(update["callback_query"])
-            await asyncio.sleep(0.5)
-    finally:
-        # ✅ برای خروج تمیز (Ctrl+C یا خطا)
-        await bot.close()
+
+        await asyncio.sleep(0.2)
 
 
 async def _handle_strategy_logic(game, user_id, strategy):
