@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from app.data.db_helper import connect_to_database
 from app.bot.telegramapi import TelegramBotAPI
 from app.data.models import UserProfile, Scenario, Decision
-from app.game.marketfactory import MarketFactory
+from app.ai import get_market_factory,get_scenario_engine
 from app.game.manager import game_manager  # مدیریت مرکزی بازی‌ها
 from app.game.engine import GameEngine      # موتور محاسبات نتایج
 from app.bot.ui import UI                  # کلاس رابط کاربری که ساختیم
@@ -19,7 +19,7 @@ from app.bot.callback_manager import CallbackManager
 
 load_dotenv()
 bot = TelegramBotAPI(os.getenv("BASE_URL") + os.getenv("BOT_TOKEN"))
-market_factory = MarketFactory()
+market_factory = get_market_factory()
 
 question_factory = QuestionFactory()
 judge = JudgeService()
